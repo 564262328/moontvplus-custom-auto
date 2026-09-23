@@ -33,6 +33,14 @@ After validation, enable the daily scheduled check:
 /vol2/1000/Docker/moontvplus-custom/auto-update/enable-auto-update.sh
 ```
 
+## Kvrocks key-count note
+
+Kvrocks does not continuously maintain the value returned by plain `DBSIZE`.
+The updater therefore runs `DBSIZE SCAN`, waits for
+`last_dbsize_scan_timestamp` to advance, and only then records/compares the
+exact key count. A plain `DBSIZE` can report `0` even when `SCAN` returns
+real MoonTV keys if no DB-size scan has been run yet.
+
 ## Kvrocks pre-update protection
 
 When a new `stable` image is actually different from the currently running image, the NAS updater now performs a Kvrocks checkpoint before changing `moontv-core`:
