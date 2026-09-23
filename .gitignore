@@ -1,0 +1,9 @@
+# Local/editor files
+.DS_Store
+*.log
+
+# NAS local runtime configuration/state
+nas/config.env
+nas/state/
+nas/backups/
+nas/logs/

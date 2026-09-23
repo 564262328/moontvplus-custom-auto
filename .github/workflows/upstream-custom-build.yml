@@ -1,0 +1,194 @@
+name: Build custom MoonTVPlus from upstream
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Build again even when this upstream commit already has an image'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: moontvplus-custom-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  UPSTREAM_REPOSITORY: mtvpls/MoonTVPlus
+  UPSTREAM_REF: main
+  IMAGE_BASENAME: moontvplus-custom
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v4
+        with:
+          path: automation
+
+      - name: Checkout MoonTVPlus upstream
+        uses: actions/checkout@v4
+        with:
+          repository: mtvpls/MoonTVPlus
+          ref: main
+          fetch-depth: 0
+          path: upstream
+
+      - name: Prepare metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          UI_VERSION="$(sed -n 's/^CUSTOM_UI_VERSION=//p' automation/custom/CUSTOM_VERSION | head -1)"
+          UPSTREAM_VERSION="$(tr -d '\r\n ' < upstream/VERSION.txt)"
+          UPSTREAM_SHA="$(git -C upstream rev-parse HEAD)"
+          SHORT_SHA="${UPSTREAM_SHA:0:12}"
+
+          OWNER_LOWER="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${OWNER_LOWER}/${IMAGE_BASENAME}"
+
+          EXACT_TAG="upstream-${SHORT_SHA}-ui${UI_VERSION}"
+          VERSION_TAG="${UPSTREAM_VERSION}-ui${UI_VERSION}"
+
+          {
+            echo "ui_version=${UI_VERSION}"
+            echo "upstream_version=${UPSTREAM_VERSION}"
+            echo "upstream_sha=${UPSTREAM_SHA}"
+            echo "short_sha=${SHORT_SHA}"
+            echo "image=${IMAGE}"
+            echo "exact_tag=${EXACT_TAG}"
+            echo "version_tag=${VERSION_TAG}"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "IMAGE=${IMAGE}"
+            echo "UI_VERSION=${UI_VERSION}"
+            echo "UPSTREAM_VERSION=${UPSTREAM_VERSION}"
+            echo "UPSTREAM_SHA=${UPSTREAM_SHA}"
+            echo "SHORT_SHA=${SHORT_SHA}"
+            echo "EXACT_TAG=${EXACT_TAG}"
+            echo "VERSION_TAG=${VERSION_TAG}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether this exact upstream commit is already built
+        id: existing
+        shell: bash
+        env:
+          FORCE: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          if [[ "$FORCE" != "true" ]] && docker buildx imagetools inspect "${IMAGE}:${EXACT_TAG}" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Image already exists: ${IMAGE}:${EXACT_TAG}"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply and verify Custom UI
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          automation/scripts/verify-patch.sh upstream automation/custom/custom-ui-v1.7.1.patch
+          git -C upstream diff --cached --stat
+          git -C upstream diff --cached --check
+
+      - name: Build local smoke-test image
+        if: steps.existing.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./upstream
+          file: ./upstream/Dockerfile.preview
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.image }}:ci-${{ steps.meta.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          automation/scripts/smoke-test.sh "${IMAGE}:ci-${SHORT_SHA}"
+
+      - name: Push immutable + version + stable tags
+        if: steps.existing.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./upstream
+          file: ./upstream/Dockerfile.preview
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.exact_tag }}
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version_tag }}
+            ${{ steps.meta.outputs.image }}:stable
+          labels: |
+            org.opencontainers.image.source=https://github.com/mtvpls/MoonTVPlus
+            org.opencontainers.image.revision=${{ steps.meta.outputs.upstream_sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.upstream_version }}
+            io.moontvplus.custom.ui.version=${{ steps.meta.outputs.ui_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Write build information
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          cat > release-info.txt <<EOF
+          Upstream repository: https://github.com/mtvpls/MoonTVPlus
+          Upstream version: ${UPSTREAM_VERSION}
+          Upstream commit: ${UPSTREAM_SHA}
+          Custom UI: ${UI_VERSION}
+          Stable image: ${IMAGE}:stable
+          Immutable image: ${IMAGE}:${EXACT_TAG}
+          Version image: ${IMAGE}:${VERSION_TAG}
+          Architecture: linux/amd64
+          EOF
+
+      - name: Upload build information
+        if: steps.existing.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moontvplus-custom-${{ steps.meta.outputs.short_sha }}
+          path: release-info.txt
+          retention-days: 30
+
+      - name: Job summary
+        shell: bash
+        run: |
+          {
+            echo "## MoonTVPlus Custom"
+            echo ""
+            echo "- Upstream version: \`${UPSTREAM_VERSION}\`"
+            echo "- Upstream commit: \`${UPSTREAM_SHA}\`"
+            echo "- Custom UI: \`${UI_VERSION}\`"
+            if [[ "${{ steps.existing.outputs.skip }}" == "true" ]]; then
+              echo "- Result: existing immutable image found; no rebuild required."
+            else
+              echo "- Result: patch applied, image built, smoke-tested and published."
+              echo "- Stable image: \`${IMAGE}:stable\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
