@@ -67,10 +67,11 @@ docker volume create "$VOL" >/dev/null
 # Stream the archive over stdin instead of bind-mounting the NAS path.
 # Feiniu/NAS ACLs can make a host directory unreadable inside a bind-mounted
 # container even though the calling shell can read it.
-cat "$ARCHIVE" | docker run --rm -i   -v "$VOL:/restore-db"   --entrypoint sh   "$IMAGE_REF"   -lc "set -eu
+cat "$ARCHIVE" | docker run --rm -i   --user 0:0   -v "$VOL:/restore-db"   --entrypoint sh   "$IMAGE_REF"   -lc "set -eu
        tar -xzf - -C /restore-db
        test -f /restore-db/CURRENT
-       chown -R $KV_UID:$KV_GID /restore-db"
+       chown -R $KV_UID:$KV_GID /restore-db
+       chmod 755 /restore-db"
 
 docker run -d   --name "$NAME"   -v "$VOL:/var/lib/kvrocks/db"   "$IMAGE_REF" >/dev/null
 
