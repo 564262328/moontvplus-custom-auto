@@ -15,6 +15,40 @@ KVROCKS_CONTAINER="${KVROCKS_CONTAINER:-moontv-kvrocks}"
 KVROCKS_PORT="${KVROCKS_PORT:-6666}"
 STATE_DIR="${STATE_DIR:-$ROOT/state}"
 
+refresh_dbsize() {
+  C="$1"
+  PREV="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT INFO keyspace" 2>/dev/null | tr -d '\r' | sed -n 's/^last_dbsize_scan_timestamp://p' | tail -1)"
+  PREV="${PREV:-0}"
+  NOW="$(date +%s)"
+
+  if [ "$PREV" -ge "$NOW" ] 2>/dev/null; then
+    sleep 1
+  fi
+
+  OUT="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE SCAN" 2>&1 | tr -d '\r')"
+  if [ "$OUT" != "OK" ]; then
+    echo "ERROR: DBSIZE SCAN was not accepted for $C: $OUT" >&2
+    return 1
+  fi
+
+  elapsed=0
+  while [ "$elapsed" -lt 120 ]; do
+    TS="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT INFO keyspace" 2>/dev/null | tr -d '\r' | sed -n 's/^last_dbsize_scan_timestamp://p' | tail -1)"
+    TS="${TS:-0}"
+
+    if [ "$TS" -gt "$PREV" ] 2>/dev/null; then
+      docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE" | tr -d '\r'
+      return 0
+    fi
+
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  echo "ERROR: DBSIZE SCAN timed out for $C" >&2
+  return 1
+}
+
 BACKUP_PATH="${1:-}"
 
 if [ -z "$BACKUP_PATH" ]; then
@@ -64,9 +98,6 @@ echo "Temporary volume: $VOL"
 
 docker volume create "$VOL" >/dev/null
 
-# Stream the archive over stdin instead of bind-mounting the NAS path.
-# Feiniu/NAS ACLs can make a host directory unreadable inside a bind-mounted
-# container even though the calling shell can read it.
 cat "$ARCHIVE" | docker run --rm -i   --user 0:0   -v "$VOL:/restore-db"   --entrypoint sh   "$IMAGE_REF"   -lc "set -eu
        tar -xzf - -C /restore-db
        test -f /restore-db/CURRENT
@@ -92,17 +123,18 @@ if [ "$ready" != "1" ]; then
   exit 7
 fi
 
-PROD_SIZE="$(docker exec "$KVROCKS_CONTAINER" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE" | tr -d '\r')"
-TEST_SIZE="$(docker exec "$NAME" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE" | tr -d '\r')"
+echo "Refreshing exact key counts with DBSIZE SCAN..."
+PROD_SIZE="$(refresh_dbsize "$KVROCKS_CONTAINER")"
+TEST_SIZE="$(refresh_dbsize "$NAME")"
 
-echo "Production DBSIZE: $PROD_SIZE"
-echo "Restored   DBSIZE: $TEST_SIZE"
+echo "Production exact DBSIZE: $PROD_SIZE"
+echo "Restored   exact DBSIZE: $TEST_SIZE"
 
 if [ -f "$BACKUP_PATH/dbsize.txt" ]; then
   EXPECTED_SIZE="$(tr -d '\r\n ' < "$BACKUP_PATH/dbsize.txt")"
-  echo "Backup-time DBSIZE: $EXPECTED_SIZE"
+  echo "Backup-time exact DBSIZE: $EXPECTED_SIZE"
   if [ -n "$EXPECTED_SIZE" ] && [ "$TEST_SIZE" != "$EXPECTED_SIZE" ]; then
-    echo "ERROR: restored DBSIZE does not match backup-time DBSIZE" >&2
+    echo "ERROR: restored exact DBSIZE does not match backup-time exact DBSIZE" >&2
     exit 8
   fi
 fi
