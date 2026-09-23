@@ -64,8 +64,11 @@ echo "Temporary volume: $VOL"
 
 docker volume create "$VOL" >/dev/null
 
-docker run --rm   -v "$VOL:/restore-db"   -v "$BACKUP_PATH:/restore:ro"   --entrypoint sh   "$IMAGE_REF"   -lc "set -eu
-       tar -xzf /restore/kvrocks-backup.tar.gz -C /restore-db
+# Stream the archive over stdin instead of bind-mounting the NAS path.
+# Feiniu/NAS ACLs can make a host directory unreadable inside a bind-mounted
+# container even though the calling shell can read it.
+cat "$ARCHIVE" | docker run --rm -i   -v "$VOL:/restore-db"   --entrypoint sh   "$IMAGE_REF"   -lc "set -eu
+       tar -xzf - -C /restore-db
        test -f /restore-db/CURRENT
        chown -R $KV_UID:$KV_GID /restore-db"
 
