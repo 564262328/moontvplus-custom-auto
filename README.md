@@ -1,128 +1,91 @@
 # MoonTVPlus Custom Auto Update V1
 
-This repository contains only the custom layer and automation. It does **not**
-vendor the MoonTVPlus source tree.
+This repository contains only the custom UI layer and update automation. It does not vendor the MoonTVPlus source tree.
 
-## What it does
+## GitHub Actions pipeline
 
-1. Every 6 hours, GitHub Actions checks `mtvpls/MoonTVPlus:main`.
-2. It identifies the exact upstream commit and `VERSION.txt`.
-3. It applies `custom/custom-ui-v1.7.1.patch`.
-4. If the patch does not apply cleanly, the workflow **fails safely** and
-   does not update `stable`.
-5. If the patch applies, it builds an amd64 Docker image using
-   `Dockerfile.preview`.
-6. It starts that image with temporary SQLite storage and runs an HTTP smoke test.
-7. Only after the smoke test passes does it publish:
-   - `ghcr.io/<owner>/moontvplus-custom:stable`
-   - `ghcr.io/<owner>/moontvplus-custom:<upstream-version>-ui1.7.1`
-   - `ghcr.io/<owner>/moontvplus-custom:upstream-<commit>-ui1.7.1`
+Every 6 hours the workflow checks `mtvpls/MoonTVPlus:main`, applies the custom UI patch, builds an amd64 Docker image, starts it for an HTTP smoke test, and only then publishes:
 
-The stable tag therefore moves only after patch + build + smoke test succeed.
+- `ghcr.io/<owner>/moontvplus-custom:stable`
+- `ghcr.io/<owner>/moontvplus-custom:<upstream-version>-ui1.7.1`
+- `ghcr.io/<owner>/moontvplus-custom:upstream-<commit>-ui1.7.1`
 
-## Why upstream is tracked by commit, not GitHub Release
+If the patch no longer applies cleanly, or the build/smoke test fails, `stable` is not moved.
 
-MoonTVPlus currently updates its `main` branch and GHCR image, while its GitHub
-Releases page has no published releases. Tracking the exact `main` commit avoids
-missing an upstream update that does not correspond to a Release object.
+## NAS installation
 
-## GitHub setup
-
-1. Create a new GitHub repository, e.g. `moontvplus-custom-auto`.
-2. Put the contents of this folder at the **repository root**.
-3. Push to `main`.
-4. Open **Actions** and manually run:
-   `Build custom MoonTVPlus from upstream`.
-5. If package publishing is blocked by repository policy, enable workflow
-   read/write permission under repository Actions settings.
-6. After the first successful build, open the generated GHCR package.
-   - Easiest NAS setup: make the package **Public**.
-   - If kept private: log in on the NAS with a GitHub PAT that can read packages.
-
-No MoonTV username/password or video-source configuration is stored in GitHub.
-
-## NAS setup
-
-Extract this repository/package on the NAS, then:
+From the repository's `nas` directory:
 
 ```sh
-cd nas
 ./install-nas.sh YOUR_GITHUB_USERNAME
 ```
 
-If GHCR is private, first authenticate on the NAS:
-
-```sh
-docker login ghcr.io
-```
-
-Then make one manual controlled upgrade:
+Then verify the installation manually:
 
 ```sh
 /vol2/1000/Docker/moontvplus-custom/auto-update/update-moontv.sh
-```
-
-Verify:
-
-```sh
 /vol2/1000/Docker/moontvplus-custom/auto-update/status.sh
 ```
 
-After the manual test is good, enable daily automatic pulling at 04:23:
+After validation, enable the daily scheduled check:
 
 ```sh
 /vol2/1000/Docker/moontvplus-custom/auto-update/enable-auto-update.sh
 ```
 
-If `crontab` is not available/persistent on your Feiniu version, create an
-equivalent daily task in the NAS task scheduler that executes:
+## Kvrocks pre-update protection
+
+When a new `stable` image is actually different from the currently running image, the NAS updater now performs a Kvrocks checkpoint before changing `moontv-core`:
+
+1. Send `BGSAVE` to the production Kvrocks instance.
+2. Wait for `bgsave_in_progress:0` and `last_bgsave_status:ok`.
+3. Verify the checkpoint contains `CURRENT`.
+4. Export `/var/lib/kvrocks/backup` to a timestamped archive under:
+   `/vol2/1000/Docker/moontvplus-custom/auto-update/kvrocks-backups`
+5. Save SHA-256 and basic metadata.
+6. Keep the newest 7 backups by default.
+7. Only after backup success does the script recreate `moontv-core`.
+
+If backup creation fails, the MoonTV update is aborted before the production app is changed.
+
+Manual backup:
 
 ```sh
-/vol2/1000/Docker/moontvplus-custom/auto-update/update-moontv.sh
+/vol2/1000/Docker/moontvplus-custom/auto-update/backup-kvrocks.sh
 ```
 
-## Data behavior
+## Non-destructive restore validation
 
-The updater recreates **only** `moontv-core` with `--no-deps`.
-It does not recreate `moontv-kvrocks`.
-
-Your existing production Kvrocks volume remains the single source of truth for
-normal application data. The updater changes the application image, not the
-database.
-
-## Failure behavior
-
-If the new stable image does not return HTTP 200/301/302/307/308 within the
-health window:
-
-1. The previous running image has already been tagged locally as a rollback image.
-2. The updater switches `moontv-core` back to that rollback tag.
-3. A `state/PAUSED` file is created.
-4. Future automatic update runs stop until you explicitly resume.
-
-After a newer GitHub build succeeds:
+Before automatic database restore is enabled, validate a backup in an isolated temporary Kvrocks volume/container:
 
 ```sh
-/vol2/1000/Docker/moontvplus-custom/auto-update/resume-auto-update.sh
+/vol2/1000/Docker/moontvplus-custom/auto-update/test-kvrocks-backup.sh
 ```
 
-Manual rollback:
+The test verifies the archive checksum, restores it into a temporary Docker volume, starts a temporary Kvrocks container, checks `PING`, and compares `DBSIZE` with the value recorded at backup time. Production Kvrocks is not modified by this test.
 
-```sh
-/vol2/1000/Docker/moontvplus-custom/auto-update/rollback-last.sh
-```
+## Current rollback behavior
 
-## Important limitation
+If the new MoonTV image fails the local HTTP health check:
 
-The smoke test proves that the app builds and boots. It cannot prove every
-upstream feature behaves correctly. A large upstream refactor can still change
-runtime behavior. The patch-apply gate and automatic NAS rollback are designed
-to keep such failures away from the production data container as much as
-practical.
+1. The application image is switched back to the previous image.
+2. Automatic updates are paused.
+3. The exact pre-update Kvrocks backup path is recorded for recovery.
+4. Kvrocks is not automatically overwritten yet.
 
-## Upstream and license
+Automatic Kvrocks restore is intentionally deferred until the isolated restore test has been run successfully on the NAS.
+
+## Data layout
+
+Production Kvrocks currently reports:
+
+- live DB: `/var/lib/kvrocks/db`
+- checkpoint directory: `/var/lib/kvrocks/backup`
+
+The checkpoint is copied to a separate NAS directory so recovery does not depend on the container's internal backup location.
+
+## Upstream
 
 Upstream: https://github.com/mtvpls/MoonTVPlus
 
-MoonTVPlus states its project license as MIT. Keep upstream copyright/license
-notices when redistributing a derived image.
+Preserve applicable upstream copyright and license notices in redistributed derivative builds.
