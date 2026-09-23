@@ -94,15 +94,29 @@ if [ "$CURRENT_ID" = "$NEW_ID" ]; then
 fi
 
 echo
+echo "===== Quiesce MoonTV before Kvrocks checkpoint ====="
+echo "Stopping $CONTAINER briefly so backup metadata and checkpoint describe the same data state..."
+docker stop "$CONTAINER" >/dev/null
+
+echo
 echo "===== Pre-update Kvrocks backup ====="
 if ! sh "$ROOT/backup-kvrocks.sh"; then
-  echo "ERROR: Kvrocks backup failed; MoonTV update aborted before any production change." >&2
+  echo "ERROR: Kvrocks backup failed; restarting existing MoonTV without changing its image." >&2
+  docker start "$CONTAINER" >/dev/null 2>&1 || true
   exit 11
 fi
 
 KV_BACKUP="$(cat "$STATE_DIR/last-kvrocks-backup")"
 printf '%s\n' "$KV_BACKUP" > "$STATE_DIR/pre-update-kvrocks-backup"
 echo "Protected Kvrocks checkpoint: $KV_BACKUP"
+
+echo
+echo "===== Validate checkpoint in isolated Kvrocks ====="
+if ! sh "$ROOT/test-kvrocks-backup.sh" "$KV_BACKUP"; then
+  echo "ERROR: isolated Kvrocks restore validation failed; restarting existing MoonTV and aborting update." >&2
+  docker start "$CONTAINER" >/dev/null 2>&1 || true
+  exit 13
+fi
 
 ROLLBACK_TAG="moontvplus-custom:rollback-$TS"
 docker tag "$CURRENT_ID" "$ROLLBACK_TAG"
@@ -117,8 +131,9 @@ python3 "$ROOT/set-compose-image.py" "$COMPOSE_FILE" "$SERVICE" "$IMAGE"
 
 cd "$LUNA_DIR"
 if ! docker compose -f "$COMPOSE_FILE" config >/dev/null; then
-  echo "ERROR: compose validation failed; restoring previous compose." >&2
+  echo "ERROR: compose validation failed; restoring previous compose and restarting existing MoonTV." >&2
   cp -a "$BACKUP" "$COMPOSE_FILE"
+  docker start "$CONTAINER" >/dev/null 2>&1 || true
   exit 12
 fi
 
