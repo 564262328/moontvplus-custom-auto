@@ -109,7 +109,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          automation/scripts/verify-patch.sh upstream automation/custom/custom-ui-v1.7.1.patch
+          bash automation/scripts/verify-patch.sh upstream automation/custom/custom-ui-v1.7.1.patch
           git -C upstream diff --cached --stat
           git -C upstream diff --cached --check
 
@@ -131,7 +131,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          automation/scripts/smoke-test.sh "${IMAGE}:ci-${SHORT_SHA}"
+          bash automation/scripts/smoke-test.sh "${IMAGE}:ci-${SHORT_SHA}"
 
       - name: Push immutable + version + stable tags
         if: steps.existing.outputs.skip != 'true'
