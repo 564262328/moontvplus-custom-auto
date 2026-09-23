@@ -19,6 +19,40 @@ KVROCKS_BGSAVE_TIMEOUT_SECONDS="${KVROCKS_BGSAVE_TIMEOUT_SECONDS:-300}"
 
 mkdir -p "$STATE_DIR" "$KVROCKS_BACKUP_ROOT"
 
+refresh_dbsize() {
+  C="$1"
+  PREV="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT INFO keyspace" 2>/dev/null | tr -d '\r' | sed -n 's/^last_dbsize_scan_timestamp://p' | tail -1)"
+  PREV="${PREV:-0}"
+  NOW="$(date +%s)"
+
+  if [ "$PREV" -ge "$NOW" ] 2>/dev/null; then
+    sleep 1
+  fi
+
+  OUT="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE SCAN" 2>&1 | tr -d '\r')"
+  if [ "$OUT" != "OK" ]; then
+    echo "ERROR: DBSIZE SCAN was not accepted for $C: $OUT" >&2
+    return 1
+  fi
+
+  elapsed=0
+  while [ "$elapsed" -lt 120 ]; do
+    TS="$(docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT INFO keyspace" 2>/dev/null | tr -d '\r' | sed -n 's/^last_dbsize_scan_timestamp://p' | tail -1)"
+    TS="${TS:-0}"
+
+    if [ "$TS" -gt "$PREV" ] 2>/dev/null; then
+      docker exec "$C" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE" | tr -d '\r'
+      return 0
+    fi
+
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  echo "ERROR: DBSIZE SCAN timed out for $C" >&2
+  return 1
+}
+
 if ! docker inspect "$KVROCKS_CONTAINER" >/dev/null 2>&1; then
   echo "ERROR: Kvrocks container not found: $KVROCKS_CONTAINER" >&2
   exit 3
@@ -28,6 +62,10 @@ if ! docker exec "$KVROCKS_CONTAINER" sh -lc "redis-cli -p $KVROCKS_PORT PING" 2
   echo "ERROR: Kvrocks PING failed" >&2
   exit 4
 fi
+
+echo "Refreshing exact Kvrocks key count..."
+EXACT_DBSIZE="$(refresh_dbsize "$KVROCKS_CONTAINER")"
+echo "Exact DBSIZE: $EXACT_DBSIZE"
 
 BACKUP_SRC="$(docker exec "$KVROCKS_CONTAINER" sh -lc "redis-cli -p $KVROCKS_PORT --raw CONFIG GET backup-dir | tail -1" | tr -d '\r')"
 if [ -z "$BACKUP_SRC" ]; then
@@ -90,9 +128,9 @@ if ! tar -tzf "$DEST/kvrocks-backup.tar.gz" | grep -Eq '(^|/)CURRENT$'; then
   exit 10
 fi
 
+printf '%s\n' "$EXACT_DBSIZE" > "$DEST/dbsize.txt"
 docker inspect "$KVROCKS_CONTAINER" --format '{{.Config.Image}}' > "$DEST/kvrocks-image-ref.txt"
 docker inspect "$KVROCKS_CONTAINER" --format '{{.Image}}' > "$DEST/kvrocks-image-id.txt"
-docker exec "$KVROCKS_CONTAINER" sh -lc "redis-cli -p $KVROCKS_PORT DBSIZE" > "$DEST/dbsize.txt" 2>/dev/null || true
 date '+%Y-%m-%d %H:%M:%S %z' > "$DEST/created-at.txt"
 printf '%s\n' "$BACKUP_SRC" > "$DEST/source-backup-dir.txt"
 (cd "$DEST" && sha256sum kvrocks-backup.tar.gz > SHA256SUMS)
@@ -112,4 +150,5 @@ fi
 
 echo "KVROCKS BACKUP OK"
 echo "Backup: $DEST"
+echo "Recorded exact DBSIZE: $EXACT_DBSIZE"
 du -sh "$DEST" 2>/dev/null || true
