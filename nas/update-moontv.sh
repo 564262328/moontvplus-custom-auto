@@ -8,10 +8,12 @@ if [ ! -f "$CONFIG" ]; then
   echo "ERROR: missing $CONFIG" >&2
   exit 2
 fi
-# shellcheck disable=SC1090
+
 . "$CONFIG"
 
-mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR"
+KVROCKS_BACKUP_ROOT="${KVROCKS_BACKUP_ROOT:-$ROOT/kvrocks-backups}"
+
+mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR" "$KVROCKS_BACKUP_ROOT"
 
 PAUSE_FILE="$STATE_DIR/PAUSED"
 LOCK_DIR="$STATE_DIR/update.lock"
@@ -26,6 +28,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "Another update process appears to be running."
   exit 0
 fi
+
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -53,6 +56,17 @@ if [ "$CURRENT_ID" = "$NEW_ID" ]; then
   exit 0
 fi
 
+echo
+echo "===== Pre-update Kvrocks backup ====="
+if ! sh "$ROOT/backup-kvrocks.sh"; then
+  echo "ERROR: Kvrocks backup failed; MoonTV update aborted before any production change." >&2
+  exit 11
+fi
+
+KV_BACKUP="$(cat "$STATE_DIR/last-kvrocks-backup")"
+printf '%s\n' "$KV_BACKUP" > "$STATE_DIR/pre-update-kvrocks-backup"
+echo "Protected Kvrocks checkpoint: $KV_BACKUP"
+
 ROLLBACK_TAG="moontvplus-custom:rollback-$TS"
 docker tag "$CURRENT_ID" "$ROLLBACK_TAG"
 
@@ -68,7 +82,7 @@ cd "$LUNA_DIR"
 if ! docker compose -f "$COMPOSE_FILE" config >/dev/null; then
   echo "ERROR: compose validation failed; restoring previous compose." >&2
   cp -a "$BACKUP" "$COMPOSE_FILE"
-  exit 10
+  exit 12
 fi
 
 echo "Recreating ONLY $SERVICE. Kvrocks will not be restarted."
@@ -79,6 +93,7 @@ i=1
 while [ "$i" -le "$HEALTH_ATTEMPTS" ]; do
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$HTTP_URL" 2>/dev/null || true)"
   running="$(docker inspect "$CONTAINER" --format '{{.State.Running}}' 2>/dev/null || echo false)"
+
   case "$code" in
     200|301|302|307|308)
       if [ "$running" = "true" ]; then
@@ -87,6 +102,7 @@ while [ "$i" -le "$HEALTH_ATTEMPTS" ]; do
       fi
       ;;
   esac
+
   sleep "$HEALTH_SLEEP_SECONDS"
   i=$((i + 1))
 done
@@ -96,11 +112,11 @@ if [ "$healthy" = "1" ]; then
   date '+%Y-%m-%d %H:%M:%S %z' > "$STATE_DIR/last-success"
   rm -f "$STATE_DIR/last-failure"
   echo "UPDATE SUCCESS: HTTP=$code"
-  echo "Kvrocks was left untouched."
+  echo "Kvrocks pre-update checkpoint retained at: $KV_BACKUP"
   exit 0
 fi
 
-echo "UPDATE FAILED. Rolling back to $ROLLBACK_TAG ..." >&2
+echo "UPDATE FAILED. Rolling application image back to $ROLLBACK_TAG ..." >&2
 docker logs --tail=120 "$CONTAINER" >&2 2>/dev/null || true
 
 python3 "$ROOT/set-compose-image.py" "$COMPOSE_FILE" "$SERVICE" "$ROLLBACK_TAG"
@@ -110,10 +126,14 @@ docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate "$SERVICE" ||
 {
   echo "Paused after failed update at $(date '+%Y-%m-%d %H:%M:%S %z')."
   echo "Failed target: $IMAGE"
-  echo "Rolled back to: $ROLLBACK_TAG"
-  echo "Run resume-auto-update.sh after a newer tested stable image is available."
+  echo "Application rolled back to: $ROLLBACK_TAG"
+  echo "Pre-update Kvrocks backup: $KV_BACKUP"
+  echo "Kvrocks was NOT automatically restored."
+  echo "Run test-kvrocks-backup.sh against that backup before any manual DB restore."
 } > "$PAUSE_FILE"
+
 cp -a "$PAUSE_FILE" "$STATE_DIR/last-failure"
 
-echo "Rollback attempted. Automatic updates are now PAUSED for safety." >&2
+echo "Application rollback attempted. Automatic updates are PAUSED for safety." >&2
+echo "Kvrocks recovery checkpoint: $KV_BACKUP" >&2
 exit 20
