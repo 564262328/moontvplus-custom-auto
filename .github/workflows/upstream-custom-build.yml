@@ -1,6 +1,12 @@
 name: Build custom MoonTVPlus from upstream
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'custom/**'
+      - 'scripts/**'
+      - '.github/workflows/upstream-custom-build.yml'
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:

@@ -1,0 +1,2074 @@
+/* ========================================================================
+   MoonTVPlus Custom UI V1
+   Visual-only overrides: navigation, hero, media cards and responsive shell.
+   Keep business logic untouched so upstream upgrades remain easier to merge.
+   ======================================================================== */
+:root {
+  --mtv-accent: #22c55e;
+  --mtv-accent-strong: #16a34a;
+  --mtv-accent-soft: rgba(34, 197, 94, 0.14);
+  --mtv-surface: rgba(255, 255, 255, 0.72);
+  --mtv-surface-strong: rgba(255, 255, 255, 0.9);
+  --mtv-border: rgba(15, 23, 42, 0.08);
+  --mtv-text-muted: rgba(51, 65, 85, 0.72);
+  --mtv-radius-xl: 22px;
+  --mtv-radius-lg: 16px;
+  --mtv-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
+}
+
+.dark {
+  --mtv-surface: rgba(8, 12, 18, 0.72);
+  --mtv-surface-strong: rgba(10, 14, 20, 0.9);
+  --mtv-border: rgba(255, 255, 255, 0.08);
+  --mtv-text-muted: rgba(226, 232, 240, 0.68);
+  --mtv-shadow-soft: 0 22px 54px rgba(0, 0, 0, 0.34);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 72% -10%, rgba(34, 197, 94, 0.085), transparent 34%),
+    radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.055), transparent 28%),
+    #05070a;
+  background-attachment: fixed;
+}
+
+.moontv-shell {
+  background: transparent;
+}
+
+.moontv-main {
+  isolation: isolate;
+}
+
+.desktop-top-actions {
+  padding: 5px;
+  border: 1px solid var(--mtv-border);
+  border-radius: 16px;
+  background: var(--mtv-surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* Desktop sidebar */
+.pro-sidebar {
+  border-right: 1px solid var(--mtv-border) !important;
+  background: rgba(250, 252, 253, 0.7) !important;
+  box-shadow: 12px 0 36px rgba(15, 23, 42, 0.05) !important;
+  backdrop-filter: blur(26px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
+}
+
+.dark .pro-sidebar {
+  background: rgba(4, 7, 11, 0.82) !important;
+  box-shadow: 14px 0 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+.pro-sidebar[data-collapsed='false'],
+.pro-sidebar-offset[data-collapsed='false'] {
+  width: 224px !important;
+}
+
+.pro-sidebar[data-collapsed='true'],
+.pro-sidebar-offset[data-collapsed='true'] {
+  width: 72px !important;
+}
+
+.pro-logo-text,
+.mobile-logo {
+  background: linear-gradient(110deg, #16a34a 0%, #22c55e 48%, #4ade80 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  letter-spacing: -0.04em;
+}
+
+.pro-nav-item {
+  min-height: 42px !important;
+  margin-bottom: 4px !important;
+  border: 1px solid transparent;
+  border-radius: 12px !important;
+  font-weight: 540;
+}
+
+.pro-nav-item:hover {
+  border-color: rgba(34, 197, 94, 0.12);
+  background: rgba(34, 197, 94, 0.07) !important;
+}
+
+.pro-nav-item[data-active='true'] {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.16), rgba(34, 197, 94, 0.055)) !important;
+  box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.9);
+}
+
+/* Home hero */
+.hero-wrap {
+  padding: 14px 18px 0;
+}
+
+.hero-banner {
+  border: 1px solid var(--mtv-border);
+  border-radius: var(--mtv-radius-xl);
+  box-shadow: var(--mtv-shadow-soft);
+  background: #0b0e12;
+}
+
+.hero-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.hero-content {
+  z-index: 3;
+  align-items: center !important;
+  padding: clamp(2rem, 4vw, 4.5rem) !important;
+}
+
+.hero-content > div {
+  max-width: min(680px, 62vw) !important;
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 4.4vw, 4.75rem) !important;
+  line-height: 0.98 !important;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.46);
+}
+
+.hero-meta {
+  gap: 8px !important;
+  font-weight: 550;
+}
+
+.hero-meta > span:not(:first-child) {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-play-button {
+  min-height: 46px;
+  padding-inline: 22px !important;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0b0f14 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.hero-play-button:hover {
+  background: white !important;
+  transform: translateY(-1px);
+}
+
+.hero-play-button svg {
+  color: #0b0f14 !important;
+  fill: #0b0f14 !important;
+}
+
+.hero-overview {
+  max-width: 62ch;
+  color: rgba(255, 255, 255, 0.72) !important;
+  line-height: 1.7;
+}
+
+.hero-dots {
+  z-index: 4;
+  gap: 7px !important;
+}
+
+/* Home content hierarchy */
+.home-content {
+  padding-top: 8px;
+}
+
+.home-content > div {
+  max-width: 1680px !important;
+}
+
+.home-quick-actions {
+  min-height: 36px;
+  padding: 0 4px;
+}
+
+.home-quick-actions button {
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.home-quick-actions button:hover {
+  border-color: var(--mtv-border);
+  background: var(--mtv-surface);
+}
+
+.home-section {
+  margin-bottom: 2.25rem !important;
+}
+
+.section-heading-row {
+  margin-bottom: 10px !important;
+  padding: 0 6px;
+}
+
+.section-heading {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.18rem !important;
+  letter-spacing: -0.025em;
+}
+
+.section-heading::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4ade80, #16a34a);
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.22);
+}
+
+.section-more {
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  color: var(--mtv-text-muted) !important;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.section-more:hover {
+  background: var(--mtv-surface);
+  color: var(--mtv-accent-strong) !important;
+}
+
+.media-row {
+  scroll-padding-inline: 8px;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  gap: 0.85rem !important;
+}
+
+.media-row-arrow {
+  width: 42px !important;
+  height: 42px !important;
+  border-color: var(--mtv-border) !important;
+  background: var(--mtv-surface-strong) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Media cards */
+.media-card {
+  border-radius: 14px !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.media-card:hover {
+  transform: translateY(-5px) scale(1.025) !important;
+}
+
+.media-card-poster {
+  border-radius: 14px !important;
+  background: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  transition: box-shadow 220ms ease, filter 220ms ease;
+}
+
+.dark .media-card-poster {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26);
+}
+
+.media-card:hover .media-card-poster {
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.2);
+}
+
+.dark .media-card:hover .media-card-poster {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.media-card-image-shell {
+  border-radius: 14px !important;
+}
+
+.media-card-overlay {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.08) 52%, transparent 72%) !important;
+}
+
+.media-card-rating {
+  width: auto !important;
+  min-width: 34px;
+  height: 25px !important;
+  padding: 0 7px;
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  border-radius: 999px !important;
+  background: rgba(10, 13, 18, 0.78) !important;
+  color: #fde047 !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.media-card-caption {
+  margin-top: 9px !important;
+  padding-inline: 2px;
+  text-align: left !important;
+}
+
+.media-card-title {
+  text-align: left;
+  font-size: 0.88rem !important;
+  font-weight: 560 !important;
+  letter-spacing: -0.012em;
+}
+
+.media-card-progress-track {
+  height: 3px !important;
+  background: rgba(148, 163, 184, 0.26) !important;
+}
+
+.media-card-progress {
+  background: linear-gradient(90deg, #16a34a, #4ade80) !important;
+}
+
+/* Mobile navigation */
+.mobile-header {
+  border-color: var(--mtv-border) !important;
+  background: rgba(248, 250, 252, 0.82) !important;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: blur(22px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
+}
+
+.dark .mobile-header {
+  background: rgba(5, 8, 12, 0.84) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22) !important;
+}
+
+.mobile-bottom-nav {
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 9px !important;
+  border: 1px solid var(--mtv-border) !important;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9) !important;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(24px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+}
+
+.dark .mobile-bottom-nav {
+  background: rgba(8, 12, 18, 0.9) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+}
+
+@media (max-width: 767px) {
+  .hero-wrap {
+    padding: 0;
+  }
+
+  .hero-banner {
+    border-width: 0;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+
+  .hero-content {
+    align-items: flex-end !important;
+    padding: 18px 18px 24px !important;
+  }
+
+  .hero-content > div {
+    max-width: 100% !important;
+  }
+
+  .hero-title {
+    font-size: clamp(1.65rem, 8vw, 2.4rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .hero-meta {
+    gap: 6px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .hero-overview {
+    display: none;
+  }
+
+  .home-content {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .home-section {
+    margin-bottom: 1.6rem !important;
+  }
+
+  .section-heading-row {
+    padding: 0 8px;
+  }
+
+  .section-heading {
+    font-size: 1rem !important;
+  }
+
+  .section-heading::before {
+    width: 3px;
+    height: 15px;
+  }
+
+  .media-row {
+    gap: 0.6rem !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .media-card:hover {
+    transform: none !important;
+  }
+
+  .media-card-caption {
+    margin-top: 7px !important;
+  }
+
+  .media-card-title {
+    font-size: 0.78rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero-wrap {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .home-content {
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
+
+/* ========================================================================
+   MoonTVPlus Custom UI V1.2 Polish
+   Refines density, sidebar hierarchy, hero readability, cards and desktop
+   action controls. CSS-only: no playback/search/API/storage logic changes.
+   ======================================================================== */
+:root {
+  --mtv-v12-sidebar-separator: rgba(15, 23, 42, 0.08);
+  --mtv-v12-personal-surface: rgba(248, 250, 252, 0.62);
+  --mtv-v12-control-surface: rgba(248, 250, 252, 0.78);
+  --mtv-v12-control-hover: rgba(34, 197, 94, 0.10);
+}
+
+.dark {
+  --mtv-v12-sidebar-separator: rgba(255, 255, 255, 0.075);
+  --mtv-v12-personal-surface: rgba(255, 255, 255, 0.028);
+  --mtv-v12-control-surface: rgba(9, 14, 20, 0.78);
+  --mtv-v12-control-hover: rgba(34, 197, 94, 0.12);
+}
+
+/* Sidebar: keep the V1.1 feature set, make the hierarchy feel more deliberate. */
+.pro-sidebar {
+  overflow: hidden;
+}
+
+.pro-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 180px;
+  pointer-events: none;
+  background: radial-gradient(circle at 38% -20%, rgba(34, 197, 94, 0.11), transparent 66%);
+  opacity: 0.9;
+}
+
+.pro-sidebar .pro-logo {
+  position: relative;
+  z-index: 1;
+}
+
+.pro-sidebar .pro-logo-text {
+  font-size: 1.42rem !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.pro-sidebar .pro-nav-item {
+  min-height: 41px !important;
+  border-radius: 11px !important;
+  font-size: 0.875rem !important;
+  line-height: 1.1;
+}
+
+.pro-sidebar .pro-nav-item svg {
+  width: 17px !important;
+  height: 17px !important;
+  stroke-width: 1.75;
+}
+
+.pro-sidebar .pro-nav-item[data-active='true'] {
+  box-shadow:
+    inset 3px 0 0 rgba(34, 197, 94, 0.95),
+    0 8px 24px rgba(34, 197, 94, 0.035) !important;
+}
+
+.pro-sidebar-personal {
+  margin: 8px 10px 12px !important;
+  padding: 9px 7px 7px !important;
+  border: 1px solid var(--mtv-v12-sidebar-separator) !important;
+  border-radius: 14px;
+  background: var(--mtv-v12-personal-surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.dark .pro-sidebar-personal {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.pro-sidebar-personal .pro-nav-item {
+  margin-bottom: 2px !important;
+}
+
+.pro-sidebar-personal .pro-nav-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.pro-sidebar[data-collapsed='true'] .pro-sidebar-personal {
+  margin-left: 8px !important;
+  margin-right: 8px !important;
+  padding-left: 5px !important;
+  padding-right: 5px !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Desktop top actions: turn the old floating block into a compact tool capsule. */
+.desktop-top-actions {
+  top: 12px !important;
+  right: 14px !important;
+  gap: 2px !important;
+  padding: 4px !important;
+  border-radius: 14px !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: var(--mtv-v12-control-surface) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+}
+
+.desktop-top-actions > button,
+.desktop-top-actions > div > button {
+  width: 36px !important;
+  height: 36px !important;
+  padding: 8px !important;
+  border-radius: 10px !important;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease !important;
+}
+
+.desktop-top-actions > button:hover,
+.desktop-top-actions > div > button:hover {
+  color: var(--mtv-accent) !important;
+  background: var(--mtv-v12-control-hover) !important;
+  transform: translateY(-1px);
+}
+
+/* Hero refinement: more readable copy and a cinematic but restrained overlay. */
+.hero-wrap {
+  padding: 12px 16px 0 !important;
+}
+
+.hero-banner {
+  border-radius: 20px !important;
+  box-shadow:
+    0 20px 54px rgba(0, 0, 0, 0.20),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025) !important;
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 10, 0.24) 0%, rgba(2, 6, 10, 0.05) 46%, transparent 72%),
+    linear-gradient(180deg, rgba(2, 6, 10, 0.03) 48%, rgba(2, 6, 10, 0.17) 100%);
+}
+
+.hero-banner img,
+.hero-banner video {
+  filter: saturate(0.96) contrast(1.025);
+}
+
+.hero-content {
+  padding: clamp(2.1rem, 4vw, 4.25rem) !important;
+}
+
+.hero-content > div {
+  max-width: min(650px, 58vw) !important;
+  gap: 0 !important;
+}
+
+.hero-title {
+  margin-bottom: 12px !important;
+  font-size: clamp(2.5rem, 4vw, 4.3rem) !important;
+  font-weight: 780 !important;
+  line-height: 0.98 !important;
+  letter-spacing: -0.05em !important;
+  text-shadow: 0 8px 32px rgba(0, 0, 0, 0.52) !important;
+}
+
+.hero-meta {
+  margin-bottom: 13px !important;
+  gap: 7px !important;
+  font-size: 0.78rem !important;
+}
+
+.hero-meta > span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 7px !important;
+  padding: 3px 7px !important;
+  background: rgba(20, 25, 31, 0.44) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.hero-meta > span:first-child {
+  background: #f1c40f !important;
+  color: #0c1014 !important;
+  border-color: rgba(255, 236, 113, 0.45) !important;
+  font-weight: 750 !important;
+}
+
+.hero-play-button {
+  min-height: 44px !important;
+  margin-bottom: 13px;
+  padding-inline: 20px !important;
+  border-radius: 10px !important;
+  font-size: 0.9rem !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25) !important;
+}
+
+.hero-overview {
+  max-width: 58ch !important;
+  margin-top: 0 !important;
+  font-size: clamp(0.82rem, 1vw, 0.94rem) !important;
+  line-height: 1.58 !important;
+  color: rgba(255, 255, 255, 0.77) !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.42) !important;
+}
+
+.hero-banner > button[aria-label='上一张'],
+.hero-banner > button[aria-label='下一张'] {
+  width: 40px !important;
+  height: 40px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(4, 7, 11, 0.38) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hero-banner > button[aria-label='上一张']:hover,
+.hero-banner > button[aria-label='下一张']:hover {
+  background: rgba(4, 7, 11, 0.68) !important;
+}
+
+.hero-banner > button[aria-label='上一张'] svg,
+.hero-banner > button[aria-label='下一张'] svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.hero-dots {
+  bottom: 13px !important;
+}
+
+.hero-dots button {
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Home sections: tighter rhythm, stronger titles, calmer cards. */
+.home-content {
+  padding-top: 4px !important;
+}
+
+.home-content > div {
+  max-width: 1760px !important;
+}
+
+.home-section {
+  margin-bottom: 2.05rem !important;
+}
+
+.section-heading-row {
+  margin-bottom: 11px !important;
+}
+
+.section-heading {
+  gap: 9px !important;
+  font-size: 1.08rem !important;
+  font-weight: 680 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.section-heading::before {
+  width: 3px !important;
+  height: 17px !important;
+}
+
+.section-more {
+  font-size: 0.78rem;
+  opacity: 0.82;
+}
+
+.section-more:hover {
+  opacity: 1;
+}
+
+.media-row {
+  gap: 0.95rem !important;
+}
+
+.media-card {
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 200ms ease !important;
+}
+
+.media-card:hover {
+  transform: translateY(-4px) scale(1.018) !important;
+}
+
+.media-card-poster {
+  border-radius: 13px !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.13) !important;
+}
+
+.dark .media-card-poster {
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+.media-card:hover .media-card-poster {
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.19) !important;
+}
+
+.dark .media-card:hover .media-card-poster {
+  box-shadow: 0 17px 38px rgba(0, 0, 0, 0.39) !important;
+}
+
+.media-card-image-shell {
+  border-radius: 13px !important;
+}
+
+.media-card-rating {
+  top: 7px !important;
+  right: 7px !important;
+  min-width: 32px !important;
+  height: 23px !important;
+  padding-inline: 6px !important;
+  border-color: rgba(250, 204, 21, 0.38) !important;
+  background: rgba(8, 11, 16, 0.76) !important;
+  font-size: 0.68rem !important;
+  letter-spacing: -0.02em;
+}
+
+.media-card-caption {
+  margin-top: 8px !important;
+}
+
+.media-card-title {
+  font-size: 0.84rem !important;
+  font-weight: 590 !important;
+  letter-spacing: -0.014em !important;
+}
+
+.media-card-progress-track {
+  margin-top: 5px !important;
+}
+
+/* Slightly denser desktop canvas on common NAS-monitor sizes. */
+@media (min-width: 1280px) {
+  .home-content > div {
+    padding-left: 1.1rem !important;
+    padding-right: 1.1rem !important;
+  }
+}
+
+/* Keep mobile behavior from V1, only make the tool surfaces more coherent. */
+@media (max-width: 767px) {
+  .hero-wrap {
+    padding: 0 !important;
+  }
+
+  .hero-banner {
+    border-radius: 0 0 18px 18px !important;
+  }
+
+  .hero-title {
+    margin-bottom: 8px !important;
+  }
+
+  .hero-meta {
+    margin-bottom: 8px !important;
+  }
+
+  .mobile-bottom-nav {
+    border-radius: 17px !important;
+  }
+}
+
+
+/* ============================================================
+   MoonTVPlus Custom UI V1.3 Dev Surfaces
+   Search / Detail / Favorites / History / Personal Center
+   ============================================================ */
+
+.moontv-search-page {
+  max-width: 1780px;
+  margin-inline: auto;
+}
+
+.moontv-search-form {
+  max-width: 760px !important;
+}
+
+.moontv-search-form > .relative {
+  filter: drop-shadow(0 16px 32px rgba(15, 23, 42, 0.08));
+}
+
+.dark .moontv-search-form > .relative {
+  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.24));
+}
+
+.moontv-search-input {
+  height: 58px !important;
+  padding-left: 48px !important;
+  padding-right: 48px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  font-size: 0.98rem !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 30px rgba(15, 23, 42, 0.07) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.dark .moontv-search-input {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(17, 24, 39, 0.78) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.035) inset,
+    0 16px 36px rgba(0, 0, 0, 0.26) !important;
+}
+
+.moontv-search-input:focus {
+  border-color: rgba(34, 197, 94, 0.56) !important;
+  box-shadow:
+    0 0 0 4px rgba(34, 197, 94, 0.11),
+    0 18px 42px rgba(15, 23, 42, 0.10) !important;
+}
+
+.dark .moontv-search-input:focus {
+  background: rgba(20, 28, 39, 0.94) !important;
+  box-shadow:
+    0 0 0 4px rgba(34, 197, 94, 0.10),
+    0 20px 44px rgba(0, 0, 0, 0.34) !important;
+}
+
+.moontv-search-page section > h2,
+.moontv-search-page section h2 {
+  letter-spacing: -0.025em;
+}
+
+.moontv-search-page section {
+  scroll-margin-top: 24px;
+}
+
+.moontv-surface-backdrop {
+  background: rgba(2, 6, 12, 0.60) !important;
+  backdrop-filter: blur(14px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+}
+
+.moontv-library-panel,
+.moontv-personal-panel,
+.moontv-detail-panel {
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow:
+    0 34px 90px rgba(2, 6, 23, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.86) inset !important;
+  backdrop-filter: blur(22px) saturate(118%);
+  -webkit-backdrop-filter: blur(22px) saturate(118%);
+}
+
+.dark .moontv-library-panel,
+.dark .moontv-personal-panel,
+.dark .moontv-detail-panel {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.97), rgba(9, 14, 22, 0.98)) !important;
+  box-shadow:
+    0 34px 100px rgba(0, 0, 0, 0.56),
+    0 1px 0 rgba(255, 255, 255, 0.035) inset !important;
+}
+
+.moontv-library-panel {
+  width: min(1180px, calc(100vw - 48px)) !important;
+  max-width: none !important;
+  max-height: min(88vh, 920px) !important;
+  border-radius: 24px !important;
+}
+
+.moontv-library-panel > div:first-child {
+  min-height: 70px;
+  padding: 18px 24px !important;
+  border-bottom-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.dark .moontv-library-panel > div:first-child {
+  background: rgba(12, 18, 27, 0.72);
+}
+
+.moontv-library-panel > div:nth-child(2) {
+  padding: 24px 26px 30px !important;
+}
+
+.moontv-library-panel h3 {
+  font-size: 1.12rem !important;
+  letter-spacing: -0.025em;
+}
+
+.moontv-library-panel button[aria-label='Close'] {
+  width: 36px !important;
+  height: 36px !important;
+  padding: 7px !important;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.moontv-library-panel button[aria-label='Close']:hover {
+  background: rgba(148, 163, 184, 0.16) !important;
+}
+
+.moontv-personal-panel {
+  max-width: 460px !important;
+  border-radius: 26px !important;
+}
+
+.moontv-personal-panel [data-panel-content] {
+  padding: 28px !important;
+}
+
+.moontv-personal-panel [data-panel-content] > div:first-child > div[class*='h-20'] {
+  box-shadow:
+    0 12px 26px rgba(37, 99, 235, 0.22),
+    0 0 0 5px rgba(255, 255, 255, 0.80) !important;
+}
+
+.dark .moontv-personal-panel [data-panel-content] > div:first-child > div[class*='h-20'] {
+  box-shadow:
+    0 12px 28px rgba(37, 99, 235, 0.22),
+    0 0 0 5px rgba(255, 255, 255, 0.045) !important;
+}
+
+.moontv-personal-panel [data-panel-content] > .space-y-3 > button {
+  border-radius: 18px !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background: rgba(248, 250, 252, 0.82) !important;
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    background 170ms ease,
+    box-shadow 170ms ease !important;
+}
+
+.dark .moontv-personal-panel [data-panel-content] > .space-y-3 > button {
+  background: rgba(30, 41, 59, 0.56) !important;
+}
+
+.moontv-personal-panel [data-panel-content] > .space-y-3 > button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 197, 94, 0.28) !important;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.dark .moontv-personal-panel [data-panel-content] > .space-y-3 > button:hover {
+  background: rgba(30, 41, 59, 0.82) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.moontv-detail-overlay > div:first-child {
+  background: rgba(2, 6, 12, 0.64) !important;
+  backdrop-filter: blur(16px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
+}
+
+.moontv-detail-panel:not(.moontv-detail-drawer) {
+  width: min(980px, calc(100vw - 48px)) !important;
+  max-width: none !important;
+  max-height: min(90vh, 940px) !important;
+  border-radius: 26px !important;
+}
+
+.moontv-detail-drawer {
+  border-radius: 26px 0 0 26px !important;
+}
+
+.moontv-detail-drawer .moontv-detail-scroll {
+  flex: 1;
+  max-height: none !important;
+}
+
+.moontv-detail-header {
+  min-height: 66px;
+  padding: 15px 20px !important;
+  border-bottom-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .moontv-detail-header {
+  background: rgba(10, 15, 23, 0.84) !important;
+}
+
+.moontv-detail-header h2 {
+  font-size: 1.06rem !important;
+  letter-spacing: -0.02em;
+}
+
+.moontv-detail-header button {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.07);
+}
+
+.moontv-detail-header button:hover {
+  background: rgba(148, 163, 184, 0.14) !important;
+}
+
+.moontv-detail-scroll {
+  max-height: calc(min(90vh, 940px) - 66px) !important;
+  scrollbar-gutter: stable;
+}
+
+.moontv-detail-scroll img {
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.moontv-detail-scroll img:hover {
+  transform: scale(1.015);
+}
+
+@media (max-width: 767px) {
+  .moontv-search-page {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    padding-top: 16px !important;
+  }
+
+  .moontv-search-input {
+    height: 54px !important;
+    border-radius: 16px !important;
+  }
+
+  .moontv-library-panel {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-height: 88dvh !important;
+    transform: none !important;
+    border-radius: 24px 24px 0 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .moontv-library-panel > div:first-child {
+    min-height: 62px;
+    padding: 14px 16px !important;
+  }
+
+  .moontv-library-panel > div:nth-child(2) {
+    padding: 18px 14px 28px !important;
+  }
+
+  .moontv-personal-panel {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+    border-radius: 24px 24px 0 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .moontv-personal-panel [data-panel-content] {
+    padding: 22px 18px 26px !important;
+  }
+
+  .moontv-detail-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .moontv-detail-panel:not(.moontv-detail-drawer) {
+    width: 100% !important;
+    max-height: 91dvh !important;
+    border-radius: 24px 24px 0 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .moontv-detail-scroll {
+    max-height: calc(91dvh - 62px) !important;
+  }
+}
+
+
+/* ============================================================
+   MoonTVPlus Custom UI V1.4 Dev Polish
+   Player / Library dialogs / User menu / Local settings
+   ============================================================ */
+
+/* Player page: stronger hierarchy without touching playback logic. */
+.moontv-play-page {
+  width: 100%;
+  max-width: 1840px;
+  margin-inline: auto;
+  padding-top: 14px !important;
+  padding-bottom: 42px !important;
+}
+
+.moontv-play-kicker {
+  padding-inline: 4px;
+}
+
+.moontv-play-kicker > h1 {
+  font-size: clamp(1.05rem, 1.25vw, 1.28rem) !important;
+  letter-spacing: -0.02em;
+  font-weight: 680 !important;
+}
+
+.moontv-play-stage {
+  position: relative;
+}
+
+.moontv-play-stage > .hidden.lg\:flex {
+  margin-bottom: -2px;
+}
+
+.moontv-play-grid {
+  align-items: stretch;
+}
+
+.moontv-player-card,
+.moontv-episode-panel {
+  min-width: 0;
+}
+
+.moontv-player-card {
+  overflow: hidden;
+  border-radius: 16px !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  background: rgba(4, 8, 13, 0.72);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.20);
+}
+
+.dark .moontv-player-card {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  background: rgba(2, 5, 9, 0.84);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.42);
+}
+
+.moontv-player-viewport,
+.moontv-player-surface {
+  border-radius: 15px !important;
+}
+
+.moontv-player-surface {
+  box-shadow: none !important;
+}
+
+.moontv-episode-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.17);
+  background: rgba(255, 255, 255, 0.76);
+  overflow: hidden !important;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px) saturate(116%);
+  -webkit-backdrop-filter: blur(18px) saturate(116%);
+}
+
+.dark .moontv-episode-panel {
+  border-color: rgba(148, 163, 184, 0.12);
+  background: rgba(10, 15, 22, 0.82);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
+}
+
+/* Film info below the player becomes a deliberate detail card. */
+.moontv-play-detail {
+  margin-top: 10px;
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(18px) saturate(112%);
+  -webkit-backdrop-filter: blur(18px) saturate(112%);
+}
+
+.dark .moontv-play-detail {
+  border-color: rgba(148, 163, 184, 0.10);
+  background: linear-gradient(145deg, rgba(12, 18, 27, 0.86), rgba(7, 11, 17, 0.80));
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.22);
+}
+
+.moontv-play-detail-copy > div {
+  padding: 14px 10px 14px 12px !important;
+}
+
+.moontv-play-detail-title {
+  margin-bottom: 12px !important;
+  font-size: clamp(1.55rem, 2.25vw, 2.25rem) !important;
+  line-height: 1.16 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.moontv-play-detail-title > button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.moontv-play-detail-title > button:hover {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.moontv-play-meta {
+  gap: 8px !important;
+  margin-bottom: 14px !important;
+  font-size: 0.86rem !important;
+  opacity: 1 !important;
+}
+
+.moontv-play-meta > span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.moontv-play-description {
+  max-width: 92ch;
+  font-size: 0.92rem !important;
+  line-height: 1.72 !important;
+  opacity: 0.78 !important;
+}
+
+.moontv-play-poster-wrap > div {
+  max-width: 210px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+}
+
+.moontv-play-poster {
+  border-radius: 14px !important;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+}
+
+.dark .moontv-play-poster {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
+}
+
+/* Library dialogs: less empty, larger content, cleaner empty states. */
+.moontv-favorites-panel,
+.moontv-history-panel {
+  width: min(1020px, calc(100vw - 56px)) !important;
+  max-height: min(86vh, 820px) !important;
+}
+
+.moontv-library-body {
+  min-height: 300px;
+}
+
+.moontv-library-empty {
+  min-height: 240px;
+  padding-block: 34px !important;
+  margin: 4px;
+  border: 1px dashed rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(148, 163, 184, 0.035);
+}
+
+.moontv-library-empty svg {
+  width: 54px !important;
+  height: 54px !important;
+  margin-bottom: 12px !important;
+}
+
+.moontv-library-grid {
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)) !important;
+  column-gap: 20px !important;
+  row-gap: 54px !important;
+}
+
+.moontv-library-grid .media-card {
+  max-width: 184px;
+  margin-inline: auto;
+}
+
+/* User menu: compact streaming-product popover rather than admin dropdown. */
+.moontv-user-menu-panel {
+  top: 54px !important;
+  right: 12px !important;
+  width: 232px !important;
+  border-radius: 17px !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18) !important;
+  backdrop-filter: blur(22px) saturate(118%);
+  -webkit-backdrop-filter: blur(22px) saturate(118%);
+}
+
+.dark .moontv-user-menu-panel {
+  background: rgba(13, 20, 30, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.48) !important;
+}
+
+.moontv-user-menu-panel > div:first-of-type {
+  padding: 10px 9px !important;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(59, 130, 246, 0.04)) !important;
+}
+
+.moontv-user-menu-panel > div:nth-of-type(2) {
+  padding: 6px !important;
+}
+
+.moontv-user-menu-panel > div:nth-of-type(2) > button {
+  min-height: 38px;
+  border-radius: 10px;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+.moontv-user-menu-panel > div:nth-of-type(2) > button:hover {
+  background: rgba(34, 197, 94, 0.075) !important;
+}
+
+.dark .moontv-user-menu-panel > div:nth-of-type(2) > button:hover {
+  background: rgba(34, 197, 94, 0.085) !important;
+}
+
+/* Local settings: same modal language as library/detail surfaces. */
+.moontv-local-settings-panel {
+  width: min(560px, calc(100vw - 32px)) !important;
+  max-width: none !important;
+  max-height: min(88vh, 820px) !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 32px 90px rgba(2, 6, 23, 0.24) !important;
+  overflow: hidden;
+  backdrop-filter: blur(22px) saturate(118%);
+  -webkit-backdrop-filter: blur(22px) saturate(118%);
+}
+
+.dark .moontv-local-settings-panel {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.97), rgba(9, 14, 22, 0.98)) !important;
+  box-shadow: 0 34px 96px rgba(0, 0, 0, 0.55) !important;
+}
+
+.moontv-local-settings-panel [data-panel-content] {
+  padding: 22px !important;
+}
+
+.moontv-local-settings-panel [data-panel-content] > div:first-child {
+  margin-bottom: 18px !important;
+}
+
+.moontv-local-settings-panel [data-panel-content] > .space-y-3 > div,
+.moontv-local-settings-panel [data-panel-content] > .md\:space-y-4 > div {
+  border-radius: 13px !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+  overflow: hidden;
+}
+
+.moontv-local-settings-panel [data-panel-content] button {
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease !important;
+}
+
+@media (min-width: 1024px) {
+  .moontv-play-grid:not(.grid-cols-1) {
+    grid-template-columns: minmax(0, 1fr) clamp(270px, 22vw, 340px) !important;
+    height: clamp(520px, 62vh, 740px) !important;
+  }
+
+  .moontv-play-grid:not(.grid-cols-1) .moontv-player-card,
+  .moontv-play-grid:not(.grid-cols-1) .moontv-episode-panel {
+    grid-column: auto !important;
+  }
+
+  .moontv-play-detail {
+    grid-template-columns: 210px minmax(0, 1fr) !important;
+  }
+
+  .moontv-play-detail-copy {
+    grid-column: 2 !important;
+  }
+
+  .moontv-play-poster-wrap {
+    grid-column: 1 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .moontv-play-page {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 8px !important;
+  }
+
+  .moontv-play-kicker {
+    padding-inline: 14px;
+  }
+
+  .moontv-play-stage {
+    padding-inline: 0;
+  }
+
+  .moontv-player-card {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  .moontv-player-viewport,
+  .moontv-player-surface {
+    border-radius: 0 !important;
+  }
+
+  .moontv-episode-panel {
+    margin-inline: 12px;
+    border-radius: 16px;
+  }
+
+  .moontv-play-detail {
+    margin: 10px 12px 0;
+    padding: 15px;
+    border-radius: 18px;
+  }
+
+  .moontv-play-detail-copy > div {
+    padding: 4px !important;
+  }
+
+  .moontv-play-detail-title {
+    font-size: 1.5rem !important;
+    text-align: left !important;
+  }
+
+  .moontv-play-description {
+    font-size: 0.88rem !important;
+    line-height: 1.66 !important;
+  }
+
+  .moontv-favorites-panel,
+  .moontv-history-panel {
+    width: 100% !important;
+    max-height: 88dvh !important;
+  }
+
+  .moontv-library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    column-gap: 10px !important;
+    row-gap: 42px !important;
+  }
+
+  .moontv-library-empty {
+    min-height: 210px;
+  }
+
+  .moontv-user-menu-panel {
+    right: 10px !important;
+    width: min(232px, calc(100vw - 20px)) !important;
+  }
+
+  .moontv-local-settings-panel {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-height: 90dvh !important;
+    transform: none !important;
+    border-radius: 24px 24px 0 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .moontv-local-settings-panel [data-panel-content] {
+    padding: 18px 15px 24px !important;
+  }
+}
+
+/* =========================================================
+   MoonTVPlus Custom UI V1.5 Final Polish
+   Player detail / adaptive library dialogs / admin console
+   ========================================================= */
+
+/* Player detail: use the full information column instead of stopping early. */
+.moontv-play-detail {
+  align-items: stretch;
+}
+
+.moontv-play-detail-copy {
+  min-width: 0;
+}
+
+.moontv-play-detail-copy > div {
+  width: 100%;
+  max-width: none !important;
+}
+
+.moontv-play-description {
+  max-width: none !important;
+  width: 100%;
+  padding-right: 10px !important;
+  line-height: 1.74 !important;
+}
+
+.moontv-play-detail-title {
+  margin-bottom: 10px !important;
+}
+
+.moontv-play-meta {
+  margin-bottom: 12px !important;
+  gap: 9px !important;
+}
+
+@media (min-width: 1024px) {
+  .moontv-play-detail {
+    grid-template-columns: 190px minmax(0, 1fr) !important;
+    gap: 22px !important;
+    padding: 18px !important;
+  }
+
+  .moontv-play-poster-wrap > div {
+    max-width: 190px !important;
+  }
+}
+
+/* Library dialogs: scale to the amount of content instead of leaving a huge empty canvas. */
+.moontv-favorites-panel,
+.moontv-history-panel {
+  width: min(1040px, calc(100vw - 56px)) !important;
+  transition: width 180ms ease, max-width 180ms ease;
+}
+
+.moontv-favorites-panel[data-item-count='0'],
+.moontv-history-panel[data-item-count='0'] {
+  width: min(680px, calc(100vw - 56px)) !important;
+}
+
+.moontv-favorites-panel[data-item-count='1'],
+.moontv-history-panel[data-item-count='1'] {
+  width: min(560px, calc(100vw - 56px)) !important;
+}
+
+.moontv-favorites-panel[data-item-count='2'],
+.moontv-history-panel[data-item-count='2'] {
+  width: min(720px, calc(100vw - 56px)) !important;
+}
+
+.moontv-library-body {
+  min-height: 250px !important;
+}
+
+.moontv-library-grid {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 168px)) !important;
+  justify-content: start !important;
+  align-content: start;
+  gap: 44px 22px !important;
+}
+
+.moontv-library-grid > div {
+  min-width: 0;
+}
+
+.moontv-library-grid .media-card {
+  width: 100%;
+  max-width: 168px !important;
+  margin-inline: 0 !important;
+}
+
+.moontv-favorites-panel[data-item-count='1'] .moontv-library-grid,
+.moontv-history-panel[data-item-count='1'] .moontv-library-grid {
+  grid-template-columns: minmax(145px, 176px) !important;
+}
+
+.moontv-favorites-panel[data-item-count='1'] .moontv-library-body,
+.moontv-history-panel[data-item-count='1'] .moontv-library-body {
+  min-height: 270px !important;
+}
+
+/* Small finishing pass for the account popover. */
+.moontv-user-menu-panel {
+  overflow: hidden;
+}
+
+.moontv-user-menu-panel > div:nth-of-type(2) > button {
+  border: 1px solid transparent;
+}
+
+.moontv-user-menu-panel > div:nth-of-type(2) > button:hover {
+  border-color: rgba(34, 197, 94, 0.12) !important;
+  transform: translateX(1px);
+}
+
+/* Admin console: calmer card hierarchy matching the front-end visual system. */
+.moontv-admin-page {
+  min-height: 100vh;
+  padding-bottom: 88px !important;
+  background:
+    radial-gradient(circle at 72% -10%, rgba(34, 197, 94, 0.055), transparent 30%),
+    radial-gradient(circle at 15% 16%, rgba(59, 130, 246, 0.035), transparent 26%);
+}
+
+.moontv-admin-shell {
+  max-width: 1480px !important;
+}
+
+.moontv-admin-header {
+  min-height: 76px;
+  margin-bottom: 18px !important;
+  padding: 17px 20px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+  backdrop-filter: blur(16px) saturate(115%);
+  -webkit-backdrop-filter: blur(16px) saturate(115%);
+}
+
+.dark .moontv-admin-header {
+  background: linear-gradient(135deg, rgba(15, 23, 34, 0.9), rgba(9, 15, 23, 0.88));
+  border-color: rgba(148, 163, 184, 0.1);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.moontv-admin-header h1 {
+  margin-right: 8px;
+  font-size: 1.5rem !important;
+  letter-spacing: -0.025em;
+}
+
+.moontv-admin-header button {
+  min-height: 30px;
+  border-radius: 9px !important;
+}
+
+.moontv-admin-notice {
+  border-radius: 14px !important;
+  padding: 13px 15px !important;
+  margin-bottom: 12px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .moontv-admin-notice-info {
+  background: rgba(30, 64, 175, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.38) !important;
+}
+
+.dark .moontv-admin-notice-warn {
+  background: rgba(120, 53, 15, 0.13) !important;
+  border-color: rgba(245, 158, 11, 0.42) !important;
+}
+
+.moontv-admin-tab {
+  margin-bottom: 11px !important;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 15px !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.dark .moontv-admin-tab {
+  background: rgba(20, 29, 41, 0.72) !important;
+  border-color: rgba(148, 163, 184, 0.105) !important;
+}
+
+.moontv-admin-tab:hover {
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.moontv-admin-tab[data-expanded='true'] {
+  border-color: rgba(34, 197, 94, 0.24);
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06) !important;
+}
+
+.dark .moontv-admin-tab[data-expanded='true'] {
+  border-color: rgba(34, 197, 94, 0.2) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2) !important;
+}
+
+.moontv-admin-tab-trigger {
+  min-height: 58px;
+  padding: 15px 18px !important;
+  background: rgba(248, 250, 252, 0.72) !important;
+}
+
+.dark .moontv-admin-tab-trigger {
+  background: rgba(29, 39, 53, 0.72) !important;
+}
+
+.moontv-admin-tab-trigger:hover {
+  background: rgba(34, 197, 94, 0.055) !important;
+}
+
+.dark .moontv-admin-tab-trigger:hover {
+  background: rgba(34, 197, 94, 0.07) !important;
+}
+
+.moontv-admin-tab-trigger h3 {
+  font-size: 1rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em;
+}
+
+.moontv-admin-tab-trigger svg {
+  width: 18px;
+  height: 18px;
+}
+
+.moontv-admin-tab-content {
+  padding: 20px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dark .moontv-admin-tab-content {
+  background: rgba(8, 14, 22, 0.46);
+}
+
+.moontv-admin-tab-parent {
+  border-color: rgba(234, 179, 8, 0.28) !important;
+  background: rgba(234, 179, 8, 0.055) !important;
+}
+
+.dark .moontv-admin-tab-parent {
+  border-color: rgba(234, 179, 8, 0.3) !important;
+  background: rgba(120, 53, 15, 0.13) !important;
+}
+
+.moontv-admin-page input:not([type='checkbox']):not([type='radio']),
+.moontv-admin-page select,
+.moontv-admin-page textarea {
+  border-radius: 10px !important;
+}
+
+.moontv-admin-page table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .moontv-favorites-panel,
+  .moontv-history-panel,
+  .moontv-favorites-panel[data-item-count],
+  .moontv-history-panel[data-item-count] {
+    width: 100% !important;
+  }
+
+  .moontv-library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 38px 10px !important;
+  }
+
+  .moontv-library-grid .media-card {
+    max-width: none !important;
+  }
+
+  .moontv-admin-page {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .moontv-admin-header {
+    padding: 15px;
+    border-radius: 15px;
+  }
+
+  .moontv-admin-tab-trigger {
+    min-height: 54px;
+    padding: 13px 14px !important;
+  }
+
+  .moontv-admin-tab-content {
+    padding: 14px !important;
+  }
+}
+
+/* ========================================================================
+   MoonTVPlus Custom UI V1.7 Desktop Focus
+   Desktop-first refinement for the primary PC viewing workflow.
+   CSS-only: no playback/search/API/storage logic changes.
+   ======================================================================== */
+
+@media (min-width: 1280px) {
+  /* Use the available PC canvas instead of keeping the player boxed in. */
+  .moontv-play-page {
+    max-width: 1920px !important;
+    padding-left: clamp(22px, 2vw, 42px) !important;
+    padding-right: clamp(22px, 2vw, 42px) !important;
+    padding-top: 10px !important;
+    padding-bottom: 34px !important;
+    gap: 10px !important;
+  }
+
+  .moontv-play-kicker {
+    padding-inline: 2px !important;
+  }
+
+  .moontv-play-kicker > h1 {
+    font-size: clamp(1rem, 1.08vw, 1.18rem) !important;
+  }
+
+  /* Fixed, readable source rail + flexible theatre area. */
+  .moontv-play-grid:not(.grid-cols-1) {
+    grid-template-columns: minmax(0, 1fr) clamp(310px, 20.5vw, 365px) !important;
+    height: clamp(610px, calc(100vh - 250px), 730px) !important;
+    gap: 12px !important;
+  }
+
+  .moontv-play-grid:not(.grid-cols-1) > .moontv-player-card {
+    grid-column: 1 !important;
+  }
+
+  .moontv-play-grid:not(.grid-cols-1) > .moontv-episode-panel {
+    grid-column: 2 !important;
+    min-width: 310px;
+  }
+
+  .moontv-play-grid.grid-cols-1 {
+    height: clamp(640px, calc(100vh - 215px), 820px) !important;
+  }
+
+  .moontv-player-card,
+  .moontv-episode-panel {
+    border-radius: 14px !important;
+  }
+
+  .moontv-player-viewport,
+  .moontv-player-surface {
+    border-radius: 13px !important;
+  }
+
+  .moontv-episode-panel {
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  /* Detail card: poster becomes a fixed information anchor, copy gets the width. */
+  .moontv-play-detail {
+    display: grid !important;
+    grid-template-columns: clamp(150px, 9.5vw, 178px) minmax(0, 1fr) !important;
+    gap: 18px !important;
+    padding: 15px 17px !important;
+    margin-top: 9px !important;
+    border-radius: 17px !important;
+  }
+
+  .moontv-play-poster-wrap {
+    grid-column: 1 !important;
+    order: 0 !important;
+    align-self: start;
+  }
+
+  .moontv-play-poster-wrap > div {
+    max-width: 172px !important;
+    margin: 0 !important;
+  }
+
+  .moontv-play-detail-copy {
+    grid-column: 2 !important;
+    min-width: 0;
+  }
+
+  .moontv-play-detail-copy > div {
+    padding: 6px 2px 4px 0 !important;
+  }
+
+  .moontv-play-detail-title {
+    margin-bottom: 8px !important;
+    font-size: clamp(1.45rem, 1.65vw, 1.95rem) !important;
+    line-height: 1.12 !important;
+    gap: 7px !important;
+  }
+
+  .moontv-play-detail-title > button {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+  }
+
+  .moontv-play-meta {
+    gap: 7px !important;
+    margin-bottom: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .moontv-play-meta > span {
+    min-height: 25px !important;
+    padding: 3px 8px !important;
+    border-radius: 7px !important;
+  }
+
+  .moontv-play-description {
+    max-width: none !important;
+    padding-right: 12px !important;
+    font-size: 0.86rem !important;
+    line-height: 1.58 !important;
+    opacity: 0.82 !important;
+  }
+
+  /* Desktop libraries: compact when sparse, generous multi-column canvas when full. */
+  .moontv-favorites-panel,
+  .moontv-history-panel {
+    width: min(1180px, calc(100vw - 150px)) !important;
+    max-height: min(86vh, 860px) !important;
+  }
+
+  .moontv-favorites-panel[data-item-count='0'],
+  .moontv-history-panel[data-item-count='0'] {
+    width: min(660px, calc(100vw - 120px)) !important;
+  }
+
+  .moontv-favorites-panel[data-item-count='1'],
+  .moontv-history-panel[data-item-count='1'] {
+    width: min(500px, calc(100vw - 120px)) !important;
+  }
+
+  .moontv-favorites-panel[data-item-count='2'],
+  .moontv-history-panel[data-item-count='2'] {
+    width: min(720px, calc(100vw - 120px)) !important;
+  }
+
+  .moontv-favorites-panel[data-item-count='3'],
+  .moontv-history-panel[data-item-count='3'] {
+    width: min(900px, calc(100vw - 120px)) !important;
+  }
+
+  .moontv-library-body {
+    padding: 22px 24px 28px !important;
+  }
+
+  .moontv-library-grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)) !important;
+    column-gap: 22px !important;
+    row-gap: 48px !important;
+  }
+
+  .moontv-library-grid .media-card {
+    max-width: 180px !important;
+  }
+
+  /* Home stays visually frozen; only allow better use of wide monitors. */
+  .home-content > div {
+    max-width: 1840px !important;
+  }
+
+  .hero-wrap {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
+@media (min-width: 1700px) {
+  .moontv-play-page {
+    max-width: 2040px !important;
+    padding-left: 34px !important;
+    padding-right: 34px !important;
+  }
+
+  .moontv-play-grid:not(.grid-cols-1) {
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    height: clamp(680px, calc(100vh - 235px), 820px) !important;
+  }
+
+  .moontv-play-detail {
+    grid-template-columns: 176px minmax(0, 1fr) !important;
+    padding: 16px 18px !important;
+  }
+
+  .home-content > div {
+    max-width: 1920px !important;
+  }
+}
+
+/* Preserve the mobile/tablet layout exactly as-is in V1.7. */
+/* ========================================================================
+   MoonTVPlus Custom UI V1.7.1 Detail Grid Hotfix
+   Fix desktop detail poster/copy placement after V1.7.
+   ======================================================================== */
+
+@media (min-width: 1280px) {
+  .moontv-play-detail {
+    align-items: start !important;
+  }
+
+  .moontv-play-detail-copy {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+  }
+
+  .moontv-play-poster-wrap {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+  }
+
+  /* Prevent the poster from being auto-placed onto a second grid row. */
+  .moontv-play-poster-wrap > div {
+    width: 100% !important;
+  }
+}

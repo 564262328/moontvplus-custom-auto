@@ -12,6 +12,14 @@ Every 6 hours the workflow checks `mtvpls/MoonTVPlus:main`, applies the custom U
 
 If the patch no longer applies cleanly, or the build/smoke test fails, `stable` is not moved.
 
+## Upstream compatibility strategy
+
+The large visual CSS layer is stored separately in `custom/custom-ui-v1.7.1.css`
+and appended after the structural patch applies. VideoCard visual hooks are
+added by `scripts/apply-videocard-customization.py` using exact semantic class
+matches. This avoids tying those two high-churn files to old line numbers while
+still failing safely if upstream changes the expected structure.
+
 ## NAS installation
 
 From the repository's `nas` directory:
