@@ -12,6 +12,12 @@ fi
 . "$CONFIG"
 
 KVROCKS_BACKUP_ROOT="${KVROCKS_BACKUP_ROOT:-$ROOT/kvrocks-backups}"
+KVROCKS_AUTO_RESTORE="${KVROCKS_AUTO_RESTORE:-0}"
+
+SKOPEO_IMAGE="${SKOPEO_IMAGE:-quay.io/skopeo/stable:latest}"
+SKOPEO_RETRY_TIMES="${SKOPEO_RETRY_TIMES:-10}"
+SKOPEO_RETRY_DELAY="${SKOPEO_RETRY_DELAY:-10s}"
+SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR" "$KVROCKS_BACKUP_ROOT"
 
@@ -60,12 +66,56 @@ write_pause() {
   {
     echo "Paused after failed update at $(date '+%Y-%m-%d %H:%M:%S %z')."
     echo "Failed target: $IMAGE"
-    echo "Rollback image: $ROLLBACK_TAG"
-    echo "Pre-update Kvrocks backup: $KV_BACKUP"
+    echo "Rollback image: ${ROLLBACK_TAG:-not-created}"
+    echo "Pre-update Kvrocks backup: ${KV_BACKUP:-not-created}"
     echo "$1"
   } > "$PAUSE_FILE"
 
   cp -a "$PAUSE_FILE" "$STATE_DIR/last-failure"
+}
+
+pull_with_skopeo() {
+  echo
+  echo "===== Docker pull failed; switching to Skopeo resilient pull ====="
+  echo "Helper image    : $SKOPEO_IMAGE"
+  echo "Retry times     : $SKOPEO_RETRY_TIMES"
+  echo "Retry delay     : $SKOPEO_RETRY_DELAY"
+  echo "Parallel copies : $SKOPEO_PARALLEL_COPIES"
+
+  if ! docker image inspect "$SKOPEO_IMAGE" >/dev/null 2>&1; then
+    echo "Skopeo helper image is not local; pulling it once..."
+    if ! docker pull "$SKOPEO_IMAGE"; then
+      echo "ERROR: could not obtain Skopeo helper image." >&2
+      return 1
+    fi
+  fi
+
+  docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    "$SKOPEO_IMAGE" \
+    copy \
+    --retry-times "$SKOPEO_RETRY_TIMES" \
+    --retry-delay "$SKOPEO_RETRY_DELAY" \
+    --image-parallel-copies "$SKOPEO_PARALLEL_COPIES" \
+    "docker://$IMAGE" \
+    "docker-daemon:$IMAGE"
+}
+
+pull_target_image() {
+  echo "Pulling tested stable image..."
+  if docker pull "$IMAGE"; then
+    echo "Docker pull succeeded."
+    return 0
+  fi
+
+  echo "WARNING: normal docker pull failed." >&2
+  if pull_with_skopeo; then
+    echo "Skopeo fallback succeeded."
+    return 0
+  fi
+
+  echo "ERROR: both docker pull and Skopeo fallback failed. Production was not changed." >&2
+  return 1
 }
 
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -82,11 +132,12 @@ echo "Current container image ref: $CURRENT_REF"
 echo "Current container image id : $CURRENT_ID"
 echo "Target stable image        : $IMAGE"
 
-echo "Pulling tested stable image..."
-docker pull "$IMAGE"
+if ! pull_target_image; then
+  exit 10
+fi
 
 NEW_ID="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
-echo "Pulled stable image id      : $NEW_ID"
+echo "Available stable image id   : $NEW_ID"
 
 if [ "$CURRENT_ID" = "$NEW_ID" ]; then
   echo "Already up to date."
@@ -137,8 +188,12 @@ if ! docker compose -f "$COMPOSE_FILE" config >/dev/null; then
   exit 12
 fi
 
-echo "Recreating ONLY $SERVICE. Kvrocks will not be restarted."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate "$SERVICE"
+echo "Recreating ONLY $SERVICE from the already-downloaded image. Kvrocks will not be restarted."
+docker compose -f "$COMPOSE_FILE" up -d \
+  --no-deps \
+  --force-recreate \
+  --pull never \
+  "$SERVICE"
 
 if check_health; then
   echo "$NEW_ID" > "$STATE_DIR/current-good-image-id"
@@ -154,7 +209,11 @@ docker logs --tail=120 "$CONTAINER" >&2 2>/dev/null || true
 
 python3 "$ROOT/set-compose-image.py" "$COMPOSE_FILE" "$SERVICE" "$ROLLBACK_TAG"
 cd "$LUNA_DIR"
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate "$SERVICE" || true
+docker compose -f "$COMPOSE_FILE" up -d \
+  --no-deps \
+  --force-recreate \
+  --pull never \
+  "$SERVICE" || true
 
 if check_health; then
   write_pause "Application rollback is healthy (HTTP=$code). Kvrocks was left untouched. Automatic updates remain paused for review."
@@ -164,7 +223,17 @@ if check_health; then
   exit 20
 fi
 
-echo "Rollback image is also unhealthy. Validating pre-update Kvrocks backup..." >&2
+if [ "$KVROCKS_AUTO_RESTORE" != "1" ]; then
+  docker stop "$CONTAINER" >/dev/null 2>&1 || true
+  write_pause "Rollback image remained unhealthy. Automatic Kvrocks restore is disabled (KVROCKS_AUTO_RESTORE=$KVROCKS_AUTO_RESTORE). Production Kvrocks was NOT overwritten. MoonTV core was stopped for manual review."
+  echo "CRITICAL: rollback image is also unhealthy." >&2
+  echo "Production Kvrocks was NOT restored or modified." >&2
+  echo "MoonTV core has been stopped and automatic updates are PAUSED." >&2
+  echo "Manual recovery can use: $KV_BACKUP" >&2
+  exit 21
+fi
+
+echo "WARNING: KVROCKS_AUTO_RESTORE=1. Validating the exact pre-update backup before production restore..." >&2
 
 if ! sh "$ROOT/test-kvrocks-backup.sh" "$KV_BACKUP"; then
   docker stop "$CONTAINER" >/dev/null 2>&1 || true
@@ -183,7 +252,11 @@ if ! sh "$ROOT/restore-kvrocks.sh" "$KV_BACKUP" --confirm-production-restore; th
 fi
 
 cd "$LUNA_DIR"
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate "$SERVICE" || true
+docker compose -f "$COMPOSE_FILE" up -d \
+  --no-deps \
+  --force-recreate \
+  --pull never \
+  "$SERVICE" || true
 
 if check_health; then
   write_pause "Full rollback succeeded: previous application image + pre-update Kvrocks checkpoint restored (HTTP=$code). Automatic updates remain paused for review."
