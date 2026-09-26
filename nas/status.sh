@@ -6,6 +6,10 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 KVROCKS_CONTAINER="${KVROCKS_CONTAINER:-moontv-kvrocks}"
 KVROCKS_PORT="${KVROCKS_PORT:-6666}"
+KVROCKS_AUTO_RESTORE="${KVROCKS_AUTO_RESTORE:-0}"
+SKOPEO_IMAGE="${SKOPEO_IMAGE:-quay.io/skopeo/stable:latest}"
+SKOPEO_RETRY_TIMES="${SKOPEO_RETRY_TIMES:-10}"
+SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
 
 echo "===== MoonTV custom update status ====="
 
@@ -21,6 +25,14 @@ if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -q "$MARK
   echo "SCHEDULE: ENABLED"
 else
   echo "SCHEDULE: NOT ENABLED"
+fi
+
+echo
+echo "Pull fallback: Skopeo ($SKOPEO_IMAGE), retries=$SKOPEO_RETRY_TIMES, parallel=$SKOPEO_PARALLEL_COPIES"
+if [ "$KVROCKS_AUTO_RESTORE" = "1" ]; then
+  echo "Kvrocks automatic production restore: ENABLED"
+else
+  echo "Kvrocks automatic production restore: DISABLED (safe default)"
 fi
 
 echo
