@@ -49,6 +49,22 @@ The updater therefore runs `DBSIZE SCAN`, waits for
 exact key count. A plain `DBSIZE` can report `0` even when `SCAN` returns
 real MoonTV keys if no DB-size scan has been run yet.
 
+## Resilient NAS image pull
+
+The NAS updater first tries a normal `docker pull`. If GHCR/CDN transport fails
+(for example with `unexpected EOF` or `connection reset by peer`), it falls
+back to Skopeo with a single parallel copy and retry/resume behavior, importing
+the completed image into the local Docker daemon. Compose then recreates only
+`moontv-core` with `--pull never`, so a successful local import is not
+followed by another network pull.
+
+Default fallback settings are:
+
+- `SKOPEO_IMAGE=quay.io/skopeo/stable:latest`
+- `SKOPEO_RETRY_TIMES=10`
+- `SKOPEO_RETRY_DELAY=10s`
+- `SKOPEO_PARALLEL_COPIES=1`
+
 ## Kvrocks pre-update protection
 
 When a new `stable` image is actually different from the currently running image, the NAS updater now performs a Kvrocks checkpoint before changing `moontv-core`:
@@ -86,12 +102,12 @@ If the new MoonTV image fails the local HTTP health check, rollback now happens 
 
 1. Switch `moontv-core` back to the previous image first, leaving Kvrocks untouched.
 2. If the previous image becomes healthy, stop there and pause automatic updates for review.
-3. If the previous image is still unhealthy, run the isolated Kvrocks restore test against the exact pre-update checkpoint.
-4. Only if that isolated validation passes, stop MoonTV and Kvrocks and restore the production Kvrocks DB to the pre-update checkpoint.
-5. Restart Kvrocks, verify `PING` and the recorded `DBSIZE`, then recreate MoonTV with the previous image.
-6. Regardless of whether application-only rollback or full rollback succeeds, automatic updates remain paused after a failed upgrade so the event can be reviewed.
+3. If the previous image is still unhealthy, automatic updates are paused and MoonTV core is stopped for manual review. Production Kvrocks is left untouched by default.
+4. Automatic production Kvrocks restore only runs when `KVROCKS_AUTO_RESTORE=1` has been explicitly configured.
+5. Even in that opt-in mode, the exact pre-update checkpoint must pass isolated restore validation before production restore is attempted.
+6. Regardless of whether application-only rollback or an explicitly enabled full rollback succeeds, automatic updates remain paused after a failed upgrade so the event can be reviewed.
 
-The guarded production restore helper refuses to run unless it is given the explicit `--confirm-production-restore` flag.
+The default is `KVROCKS_AUTO_RESTORE=0`. The guarded production restore helper also refuses to run unless it is given the explicit `--confirm-production-restore` flag.
 
 ## Data layout
 
