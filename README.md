@@ -28,6 +28,37 @@ preserves upstream navigation changes while re-applying the custom visual hooks
 and desktop personal shortcuts. Every adapter stops safely if its expected
 structure is no longer recognizable.
 
+## Automatic Core50 source pool
+
+The NAS source-maintenance job can keep a larger source pool automatically
+without deleting historical source records.
+
+- The sources that were active when Core50 is first installed become the
+  long-lived Core anchor and are preferred while healthy.
+- The target active pool is 50 sources by default.
+- An active source must fail 2 consecutive daily checks before automatic
+  demotion.
+- A disabled source must pass 2 consecutive daily checks before automatic
+  promotion after bootstrap.
+- The first Core50 run may immediately use currently healthy disabled sources
+  so the pool can expand from Core30 without waiting two days.
+- Exact API duplicates are collapsed for health/ranking purposes.
+- Existing source keys are preserved, and non-selected sources are retained
+  with `disabled=true`; they are never deleted.
+- `admin:config` is backed up before every production change. If MoonTV fails
+  the HTTP health check after a source-pool change, the previous config is
+  restored automatically.
+- Source maintenance skips safely when the application-image updater lock is
+  present, avoiding overlap with a long GHCR image download.
+- Reports are written under
+  `/vol2/1000/Docker/moontvplus-custom/source-maintenance/<timestamp>`.
+
+The production script is `nas/moontv_source_maintenance.py`. A local
+`source-maintenance/pins.json` can pin approved sources, and a local
+`source-maintenance/source-seeds.json` can provide additional user-approved
+candidate sources. The automation never discovers arbitrary new endpoints by
+itself.
+
 ## NAS installation
 
 From the repository's `nas` directory:
