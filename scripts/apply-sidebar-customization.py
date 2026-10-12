@@ -64,9 +64,7 @@ if "className={`pro-nav-item group flex items-center rounded-lg" not in text:
     text = text.replace(nav_prefix, "className={`pro-nav-item group flex items-center rounded-lg")
 
 if "pro-sidebar-personal" not in text:
-    anchor = "
-          </div>
-        </aside>"
+    anchor = "\n          </div>\n        </aside>"
     pos = text.rfind(anchor)
     if pos < 0:
         raise SystemExit("ERROR: Sidebar personal-section insertion anchor not found.")
