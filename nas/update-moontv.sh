@@ -18,11 +18,17 @@ SKOPEO_IMAGE="${SKOPEO_IMAGE:-quay.io/skopeo/stable:latest}"
 SKOPEO_RETRY_TIMES="${SKOPEO_RETRY_TIMES:-10}"
 SKOPEO_RETRY_DELAY="${SKOPEO_RETRY_DELAY:-10s}"
 SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
+PULL_STRATEGY="${PULL_STRATEGY:-skopeo-first}"
+REMOTE_CHECK_RETRIES="${REMOTE_CHECK_RETRIES:-3}"
+REMOTE_CHECK_DELAY_SECONDS="${REMOTE_CHECK_DELAY_SECONDS:-10}"
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR" "$KVROCKS_BACKUP_ROOT"
 
 PAUSE_FILE="$STATE_DIR/PAUSED"
 LOCK_DIR="$STATE_DIR/update.lock"
+LAST_GOOD_REMOTE_DIGEST="$STATE_DIR/current-good-remote-digest"
+LAST_REMOTE_CHECK="$STATE_DIR/last-remote-check"
+LAST_REMOTE_DIGEST="$STATE_DIR/last-remote-digest"
 
 if [ -f "$PAUSE_FILE" ]; then
   echo "Automatic updates are PAUSED:"
@@ -35,7 +41,8 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   exit 0
 fi
 
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+echo "$$" > "$LOCK_DIR/pid"
+trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
 check_health() {
   healthy=0
@@ -74,48 +81,90 @@ write_pause() {
   cp -a "$PAUSE_FILE" "$STATE_DIR/last-failure"
 }
 
+ensure_skopeo() {
+  if docker image inspect "$SKOPEO_IMAGE" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Skopeo helper image is not local; pulling it once..."
+  if docker pull "$SKOPEO_IMAGE"; then
+    return 0
+  fi
+
+  echo "ERROR: could not obtain Skopeo helper image." >&2
+  return 1
+}
+
+fetch_remote_metadata() {
+  ensure_skopeo || return 1
+
+  attempt=1
+  while [ "$attempt" -le "$REMOTE_CHECK_RETRIES" ]; do
+    echo "Checking remote stable metadata (attempt $attempt/$REMOTE_CHECK_RETRIES)..."
+
+    if REMOTE_JSON="$(docker run --rm "$SKOPEO_IMAGE" inspect "docker://$IMAGE" 2>/dev/null)"; then
+      REMOTE_DIGEST="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("Digest") or "")')"
+      REMOTE_VERSION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.version") or "")')"
+      REMOTE_REVISION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.revision") or "")')"
+      REMOTE_UI="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("io.moontvplus.custom.ui.version") or "")')"
+
+      if [ -n "$REMOTE_DIGEST" ]; then
+        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
+        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
+        return 0
+      fi
+    fi
+
+    if [ "$attempt" -lt "$REMOTE_CHECK_RETRIES" ]; then
+      sleep "$REMOTE_CHECK_DELAY_SECONDS"
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  echo "ERROR: remote stable metadata check failed. Production was not changed." >&2
+  return 1
+}
+
 pull_with_skopeo() {
   echo
-  echo "===== Docker pull failed; switching to Skopeo resilient pull ====="
+  echo "===== Skopeo resilient image pull ====="
   echo "Helper image    : $SKOPEO_IMAGE"
   echo "Retry times     : $SKOPEO_RETRY_TIMES"
   echo "Retry delay     : $SKOPEO_RETRY_DELAY"
   echo "Parallel copies : $SKOPEO_PARALLEL_COPIES"
 
-  if ! docker image inspect "$SKOPEO_IMAGE" >/dev/null 2>&1; then
-    echo "Skopeo helper image is not local; pulling it once..."
-    if ! docker pull "$SKOPEO_IMAGE"; then
-      echo "ERROR: could not obtain Skopeo helper image." >&2
-      return 1
-    fi
-  fi
+  ensure_skopeo || return 1
 
-  docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    "$SKOPEO_IMAGE" \
-    copy \
-    --retry-times "$SKOPEO_RETRY_TIMES" \
-    --retry-delay "$SKOPEO_RETRY_DELAY" \
-    --image-parallel-copies "$SKOPEO_PARALLEL_COPIES" \
-    "docker://$IMAGE" \
-    "docker-daemon:$IMAGE"
+  docker run --rm     -v /var/run/docker.sock:/var/run/docker.sock     "$SKOPEO_IMAGE"     copy     --retry-times "$SKOPEO_RETRY_TIMES"     --retry-delay "$SKOPEO_RETRY_DELAY"     --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"     "docker://$IMAGE"     "docker-daemon:$IMAGE"
 }
 
 pull_target_image() {
-  echo "Pulling tested stable image..."
-  if docker pull "$IMAGE"; then
-    echo "Docker pull succeeded."
-    return 0
-  fi
-
-  echo "WARNING: normal docker pull failed." >&2
-  if pull_with_skopeo; then
-    echo "Skopeo fallback succeeded."
-    return 0
-  fi
-
-  echo "ERROR: both docker pull and Skopeo fallback failed. Production was not changed." >&2
-  return 1
+  case "$PULL_STRATEGY" in
+    skopeo)
+      pull_with_skopeo
+      ;;
+    skopeo-first)
+      if pull_with_skopeo; then
+        echo "Skopeo pull succeeded."
+        return 0
+      fi
+      echo "WARNING: Skopeo pull failed; trying normal docker pull once." >&2
+      docker pull "$IMAGE"
+      ;;
+    docker-first)
+      echo "Pulling tested stable image with Docker..."
+      if docker pull "$IMAGE"; then
+        echo "Docker pull succeeded."
+        return 0
+      fi
+      echo "WARNING: normal docker pull failed; switching to Skopeo." >&2
+      pull_with_skopeo
+      ;;
+    *)
+      echo "ERROR: unsupported PULL_STRATEGY=$PULL_STRATEGY (use skopeo, skopeo-first, or docker-first)." >&2
+      return 1
+      ;;
+  esac
 }
 
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -127,12 +176,44 @@ fi
 
 CURRENT_ID="$(docker inspect "$CONTAINER" --format '{{.Image}}')"
 CURRENT_REF="$(docker inspect "$CONTAINER" --format '{{.Config.Image}}')"
+CURRENT_VERSION="$(docker inspect "$CONTAINER" --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
+CURRENT_REVISION="$(docker inspect "$CONTAINER" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || true)"
+CURRENT_UI="$(docker inspect "$CONTAINER" --format '{{index .Config.Labels "io.moontvplus.custom.ui.version"}}' 2>/dev/null || true)"
 
 echo "Current container image ref: $CURRENT_REF"
 echo "Current container image id : $CURRENT_ID"
+echo "Current version            : $CURRENT_VERSION"
+echo "Current revision           : $CURRENT_REVISION"
 echo "Target stable image        : $IMAGE"
+echo "Pull strategy              : $PULL_STRATEGY"
+
+if ! fetch_remote_metadata; then
+  exit 10
+fi
+
+echo "Remote digest              : $REMOTE_DIGEST"
+echo "Remote version             : $REMOTE_VERSION"
+echo "Remote revision            : $REMOTE_REVISION"
+echo "Remote UI                  : $REMOTE_UI"
+
+if [ -f "$LAST_GOOD_REMOTE_DIGEST" ] && [ "$(cat "$LAST_GOOD_REMOTE_DIGEST" 2>/dev/null || true)" = "$REMOTE_DIGEST" ]; then
+  echo "Remote stable digest is unchanged. Already up to date; no image download needed."
+  exit 0
+fi
+
+# Bootstrap the digest state without a large pull when the running container is
+# already the exact same upstream/UI build as remote stable.
+if [ ! -f "$LAST_GOOD_REMOTE_DIGEST" ]   && [ -n "$REMOTE_REVISION" ]   && [ "$CURRENT_REVISION" = "$REMOTE_REVISION" ]   && [ "$CURRENT_VERSION" = "$REMOTE_VERSION" ]   && [ "$CURRENT_UI" = "$REMOTE_UI" ]; then
+  printf '%s\n' "$REMOTE_DIGEST" > "$LAST_GOOD_REMOTE_DIGEST"
+  echo "Running container already matches remote stable metadata. Digest state initialized; no download needed."
+  exit 0
+fi
+
+echo
+echo "New remote stable detected. Downloading in the background-safe updater process..."
 
 if ! pull_target_image; then
+  echo "ERROR: image download failed after all configured strategies. Production was not changed." >&2
   exit 10
 fi
 
@@ -140,7 +221,8 @@ NEW_ID="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
 echo "Available stable image id   : $NEW_ID"
 
 if [ "$CURRENT_ID" = "$NEW_ID" ]; then
-  echo "Already up to date."
+  printf '%s\n' "$REMOTE_DIGEST" > "$LAST_GOOD_REMOTE_DIGEST"
+  echo "Local image already matches the running container. Digest state updated."
   exit 0
 fi
 
@@ -189,14 +271,11 @@ if ! docker compose -f "$COMPOSE_FILE" config >/dev/null; then
 fi
 
 echo "Recreating ONLY $SERVICE from the already-downloaded image. Kvrocks will not be restarted."
-docker compose -f "$COMPOSE_FILE" up -d \
-  --no-deps \
-  --force-recreate \
-  --pull never \
-  "$SERVICE"
+docker compose -f "$COMPOSE_FILE" up -d   --no-deps   --force-recreate   --pull never   "$SERVICE"
 
 if check_health; then
   echo "$NEW_ID" > "$STATE_DIR/current-good-image-id"
+  printf '%s\n' "$REMOTE_DIGEST" > "$LAST_GOOD_REMOTE_DIGEST"
   date '+%Y-%m-%d %H:%M:%S %z' > "$STATE_DIR/last-success"
   rm -f "$STATE_DIR/last-failure"
   echo "UPDATE SUCCESS: HTTP=$code"
@@ -209,11 +288,7 @@ docker logs --tail=120 "$CONTAINER" >&2 2>/dev/null || true
 
 python3 "$ROOT/set-compose-image.py" "$COMPOSE_FILE" "$SERVICE" "$ROLLBACK_TAG"
 cd "$LUNA_DIR"
-docker compose -f "$COMPOSE_FILE" up -d \
-  --no-deps \
-  --force-recreate \
-  --pull never \
-  "$SERVICE" || true
+docker compose -f "$COMPOSE_FILE" up -d   --no-deps   --force-recreate   --pull never   "$SERVICE" || true
 
 if check_health; then
   write_pause "Application rollback is healthy (HTTP=$code). Kvrocks was left untouched. Automatic updates remain paused for review."
@@ -252,11 +327,7 @@ if ! sh "$ROOT/restore-kvrocks.sh" "$KV_BACKUP" --confirm-production-restore; th
 fi
 
 cd "$LUNA_DIR"
-docker compose -f "$COMPOSE_FILE" up -d \
-  --no-deps \
-  --force-recreate \
-  --pull never \
-  "$SERVICE" || true
+docker compose -f "$COMPOSE_FILE" up -d   --no-deps   --force-recreate   --pull never   "$SERVICE" || true
 
 if check_health; then
   write_pause "Full rollback succeeded: previous application image + pre-update Kvrocks checkpoint restored (HTTP=$code). Automatic updates remain paused for review."

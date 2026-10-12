@@ -57,6 +57,31 @@ The updater therefore runs `DBSIZE SCAN`, waits for
 exact key count. A plain `DBSIZE` can report `0` even when `SCAN` returns
 real MoonTV keys if no DB-size scan has been run yet.
 
+## Unattended NAS update flow
+
+Normal updates require no interactive SSH session. The scheduled updater first
+uses Skopeo to inspect the remote `stable` manifest and labels. If the last
+known-good remote digest is unchanged, the check exits in seconds without
+downloading image layers.
+
+When a new remote digest is detected, the updater downloads the image and
+continues with the existing Kvrocks checkpoint, isolated restore validation,
+application-only recreate, and health-check flow.
+
+Because this NAS repeatedly experienced GHCR large-layer resets with Docker
+pull, the default strategy is now `PULL_STRATEGY=skopeo-first`. This avoids
+spending many minutes on a Docker pull that is likely to fail before falling
+back to Skopeo.
+
+For an immediate update without waiting in SSH, run:
+
+```sh
+/vol2/1000/Docker/moontvplus-custom/auto-update/update-now.sh
+```
+
+It starts the update under `nohup`, writes a timestamped log, and returns
+immediately. Closing SSH does not stop the update.
+
 ## Resilient NAS image pull
 
 The NAS updater first tries a normal `docker pull`. If GHCR/CDN transport fails

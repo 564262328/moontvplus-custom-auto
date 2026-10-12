@@ -3,7 +3,7 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 MARKER="# moontv-custom-auto-update"
-LINE="23 4 * * * $ROOT/update-moontv.sh >> $ROOT/logs/auto-update.log 2>&1 $MARKER"
+LINE="17 2 * * * $ROOT/update-moontv.sh >> $ROOT/logs/auto-update.log 2>&1 $MARKER"
 
 if ! command -v crontab >/dev/null 2>&1; then
   echo "crontab command not found."
@@ -20,4 +20,4 @@ fi
 echo "Automatic NAS update enabled:"
 echo "$LINE"
 echo
-echo "Note: if Feiniu replaces user crontabs after a system update, recreate the same scheduled task in its task scheduler UI."
+echo "The updater performs a lightweight remote digest check first. If stable is unchanged, it exits without downloading image layers."
