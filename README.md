@@ -15,10 +15,18 @@ If the patch no longer applies cleanly, or the build/smoke test fails, `stable` 
 ## Upstream compatibility strategy
 
 The large visual CSS layer is stored separately in `custom/custom-ui-v1.7.1.css`
-and appended after the structural patch applies. VideoCard visual hooks are
-added by `scripts/apply-videocard-customization.py` using exact semantic class
-matches. This avoids tying those two high-churn files to old line numbers while
-still failing safely if upstream changes the expected structure.
+and appended after the structural patch applies. High-churn UI targets are
+adapted semantically instead of by old patch line numbers:
+
+- `scripts/apply-videocard-customization.py`
+- `scripts/apply-search-customization.py`
+- `scripts/apply-sidebar-customization.py`
+
+The search adapter supports both the legacy `src/app/search/page.tsx` layout
+and the newer `src/components/SearchPageClient.tsx` split. The Sidebar adapter
+preserves upstream navigation changes while re-applying the custom visual hooks
+and desktop personal shortcuts. Every adapter stops safely if its expected
+structure is no longer recognizable.
 
 ## NAS installation
 
