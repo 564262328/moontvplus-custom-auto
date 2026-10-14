@@ -20,11 +20,13 @@ CSS_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.7.1.css"
 VIDEO_SCRIPT="$AUTOMATION_ROOT/scripts/apply-videocard-customization.py"
 SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-customization.py"
 SIDEBAR_SCRIPT="$AUTOMATION_ROOT/scripts/apply-sidebar-customization.py"
+COVERAGE_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-coverage.py"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
 [[ -f "$VIDEO_SCRIPT" ]] || { echo "ERROR: missing $VIDEO_SCRIPT" >&2; exit 2; }
 [[ -f "$SEARCH_SCRIPT" ]] || { echo "ERROR: missing $SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SIDEBAR_SCRIPT" ]] || { echo "ERROR: missing $SIDEBAR_SCRIPT" >&2; exit 2; }
+[[ -f "$COVERAGE_SCRIPT" ]] || { echo "ERROR: missing $COVERAGE_SCRIPT" >&2; exit 2; }
 
 cd "$UPSTREAM_DIR"
 git reset --hard HEAD
@@ -73,7 +75,10 @@ python3 "$SEARCH_SCRIPT" "$SEARCH_TARGET"
 echo "Applying semantic Sidebar hooks..."
 python3 "$SIDEBAR_SCRIPT" src/components/Sidebar.tsx
 
-git add src/app/globals.css src/components/VideoCard.tsx "$SEARCH_TARGET" src/components/Sidebar.tsx
+echo "Applying coverage-oriented downstream search compatibility..."
+python3 "$COVERAGE_SCRIPT" src/lib/downstream.ts
+
+git add src/app/globals.css src/components/VideoCard.tsx "$SEARCH_TARGET" src/components/Sidebar.tsx src/lib/downstream.ts
 
 test -f Dockerfile.preview
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
@@ -83,6 +88,8 @@ grep -q 'media-card-title' src/components/VideoCard.tsx
 grep -q 'moontv-search-input' "$SEARCH_TARGET"
 grep -q 'pro-sidebar-personal' src/components/Sidebar.tsx
 grep -q 'pro-sidebar-offset' src/components/Sidebar.tsx
+grep -q 'MoonTV Custom Coverage Search' src/lib/downstream.ts
+grep -Fq 'searchPlayData.length === 0' src/lib/downstream.ts
 
 git diff --cached --check
 
