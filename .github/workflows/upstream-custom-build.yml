@@ -19,7 +19,7 @@ on:
 
 concurrency:
   group: moontvplus-custom-upstream
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
