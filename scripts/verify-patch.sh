@@ -34,6 +34,9 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$ADULT_NAV_SCRIPT" ]] || { echo "ERROR: missing $ADULT_NAV_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
+echo "Checking NAS maintenance script syntax..."
+python3 -m py_compile "$AUTOMATION_ROOT/nas/moontv_source_maintenance.py"
+
 cd "$UPSTREAM_DIR"
 git reset --hard HEAD
 git clean -fdx
