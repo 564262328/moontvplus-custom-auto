@@ -21,12 +21,18 @@ VIDEO_SCRIPT="$AUTOMATION_ROOT/scripts/apply-videocard-customization.py"
 SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-customization.py"
 SIDEBAR_SCRIPT="$AUTOMATION_ROOT/scripts/apply-sidebar-customization.py"
 COVERAGE_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-coverage.py"
+ADULT_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-home-customization.py"
+ADULT_NAV_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-navigation.py"
+OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
 [[ -f "$VIDEO_SCRIPT" ]] || { echo "ERROR: missing $VIDEO_SCRIPT" >&2; exit 2; }
 [[ -f "$SEARCH_SCRIPT" ]] || { echo "ERROR: missing $SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SIDEBAR_SCRIPT" ]] || { echo "ERROR: missing $SIDEBAR_SCRIPT" >&2; exit 2; }
 [[ -f "$COVERAGE_SCRIPT" ]] || { echo "ERROR: missing $COVERAGE_SCRIPT" >&2; exit 2; }
+[[ -f "$ADULT_HOME_SCRIPT" ]] || { echo "ERROR: missing $ADULT_HOME_SCRIPT" >&2; exit 2; }
+[[ -f "$ADULT_NAV_SCRIPT" ]] || { echo "ERROR: missing $ADULT_NAV_SCRIPT" >&2; exit 2; }
+[[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 cd "$UPSTREAM_DIR"
 git reset --hard HEAD
@@ -78,7 +84,16 @@ python3 "$SIDEBAR_SCRIPT" src/components/Sidebar.tsx
 echo "Applying coverage-oriented downstream search compatibility..."
 python3 "$COVERAGE_SCRIPT" src/lib/downstream.ts
 
-git add src/app/globals.css src/components/VideoCard.tsx "$SEARCH_TARGET" src/components/Sidebar.tsx src/lib/downstream.ts
+echo "Applying five-row home layout + adult aggregation hooks..."
+python3 "$ADULT_HOME_SCRIPT" src/app/page.tsx
+
+echo "Applying adult navigation + special-source context preservation..."
+python3 "$ADULT_NAV_SCRIPT" .
+
+echo "Applying custom overlay files..."
+cp -a "$OVERLAY_DIR/." .
+
+git add   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts
 
 test -f Dockerfile.preview
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
@@ -90,6 +105,12 @@ grep -q 'pro-sidebar-personal' src/components/Sidebar.tsx
 grep -q 'pro-sidebar-offset' src/components/Sidebar.tsx
 grep -q 'MoonTV Custom Coverage Search' src/lib/downstream.ts
 grep -Fq 'searchPlayData.length === 0' src/lib/downstream.ts
+grep -q "case 'hotAdult':" src/app/page.tsx
+grep -q "case 'hotAnime':" src/app/page.tsx
+grep -q "label: '成人'" src/components/Sidebar.tsx
+grep -q 'recognize explicit special-source play links' src/lib/special-source.client.ts
+grep -q "getAvailableApiSites(" src/app/api/adult/home/route.ts
+grep -q "SearchPageClient searchBase='/under'" src/app/under/page.tsx
 
 git diff --cached --check
 
