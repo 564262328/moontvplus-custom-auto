@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MoonTV Core50 automatic source-pool maintenance.
+MoonTV Core50 + Adult automatic source-pool maintenance.
 
 Design goals:
 - Reuse only sources already present in MoonTV plus optional user-approved seeds.
 - Keep the original active pool as the long-lived Core anchor.
-- Expand/maintain up to TARGET_ACTIVE sources (default 50).
+- Maintain up to TARGET_ACTIVE normal sources (default 50) plus a separate adult pool.
 - Require consecutive failures before disabling an active source.
 - Require consecutive healthy checks before re-enabling a previously disabled source.
-- Never delete source records; only toggle disabled and refresh ConfigFile.api_site.
+- Never delete source records; only toggle disabled, refresh ConfigFile.api_site, and maintain SpecialSourceApis.
 - Back up admin:config before every production write.
 - Roll back the config automatically if MoonTV fails its HTTP health check.
 - Avoid changing source config while the application image updater is running.
@@ -54,6 +54,8 @@ SEEDS_FILE = MAINT_ROOT / "source-seeds.json"
 LOCK_DIR = MAINT_ROOT / ".maintenance.lock"
 
 TARGET_ACTIVE = int(os.getenv("MOONTV_SOURCE_TARGET", "50"))
+ADULT_TARGET = int(os.getenv("MOONTV_ADULT_SOURCE_TARGET", "20"))
+POOL_MODE = "normal-adult-v1"
 FAIL_THRESHOLD = int(os.getenv("MOONTV_SOURCE_FAIL_THRESHOLD", "2"))
 RECOVER_THRESHOLD = int(os.getenv("MOONTV_SOURCE_RECOVER_THRESHOLD", "2"))
 WORKERS = int(os.getenv("MOONTV_SOURCE_WORKERS", "10"))
@@ -63,7 +65,29 @@ TOTAL_TIMEOUT = float(os.getenv("MOONTV_SOURCE_TOTAL_TIMEOUT", "8"))
 KEEP_RUNS = int(os.getenv("MOONTV_SOURCE_KEEP_RUNS", "30"))
 MAX_READ = int(os.getenv("MOONTV_SOURCE_MAX_READ", str(1024 * 1024)))
 OK_HTTP = {"200", "301", "302", "307", "308"}
-UA = "Mozilla/5.0 (MoonTV-Core50-Maintenance/2.0)"
+UA = "Mozilla/5.0 (MoonTV-Core50-Adult-Maintenance/3.0)"
+
+# Strong source-level markers only. Existing SpecialSourceApis are always
+# preserved. This deliberately avoids classifying individual titles.
+ADULT_NAME_MARKERS = (
+    "成人",
+    "黄色",
+    "番号",
+    "麻豆",
+    "杏吧",
+)
+
+
+def is_adult_source(row: Dict[str, Any], existing_special_keys: set) -> bool:
+    key = str(row.get("key", "")).strip()
+    name = str(row.get("name", "")).strip()
+    upper = name.upper()
+
+    if key and key in existing_special_keys:
+        return True
+    if upper.startswith("AV-") or upper.startswith("AV_") or upper.startswith("[AV]"):
+        return True
+    return any(marker in name for marker in ADULT_NAME_MARKERS)
 
 
 def run(cmd: List[str], *, input_text: Optional[str] = None, check: bool = True, timeout: Optional[float] = None) -> subprocess.CompletedProcess:
@@ -435,9 +459,11 @@ def update_streak_state(rows: List[Dict[str, Any]], old_state: Dict[str, Any]) -
         row["fail_streak"] = fail_streak
 
     return {
-        "version": 2,
+        "version": 3,
+        "pool_mode": POOL_MODE,
         "updated_at": now,
         "target_active": TARGET_ACTIVE,
+        "adult_target": ADULT_TARGET,
         "fail_threshold": FAIL_THRESHOLD,
         "recover_threshold": RECOVER_THRESHOLD,
         "sources": sources_state,
@@ -478,8 +504,7 @@ def candidate_priority(row: Dict[str, Any], *, core_apis: set, pinned_keys: set,
     )
 
 
-def choose_sources(rows: List[Dict[str, Any]], core_anchor: Dict[str, Any], pinned_keys: set, pinned_apis: set, bootstrap: bool) -> List[Dict[str, Any]]:
-    core_apis = {normalize_api(str(x)) for x in core_anchor.get("apis", []) if normalize_api(str(x))}
+def choose_partition(rows: List[Dict[str, Any]], target: int, core_apis: set, pinned_keys: set, pinned_apis: set, bootstrap: bool) -> List[Dict[str, Any]]:
     ranked = sorted(rows, key=lambda r: candidate_priority(
         r,
         core_apis=core_apis,
@@ -500,9 +525,33 @@ def choose_sources(rows: List[Dict[str, Any]], core_anchor: Dict[str, Any], pinn
             continue
         selected.append(row)
         seen.add(api)
-        if len(selected) >= max(TARGET_ACTIVE, len(pinned)):
+        if len(selected) >= max(target, len(pinned)):
             break
     return selected
+
+
+def choose_sources(rows: List[Dict[str, Any]], core_anchor: Dict[str, Any], pinned_keys: set, pinned_apis: set, bootstrap: bool) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    core_apis = {normalize_api(str(x)) for x in core_anchor.get("apis", []) if normalize_api(str(x))}
+    normal_rows = [row for row in rows if not row.get("adult")]
+    adult_rows = [row for row in rows if row.get("adult")]
+
+    selected_normal = choose_partition(
+        normal_rows,
+        TARGET_ACTIVE,
+        core_apis,
+        pinned_keys,
+        pinned_apis,
+        bootstrap,
+    )
+    selected_adult = choose_partition(
+        adult_rows,
+        ADULT_TARGET,
+        core_apis,
+        pinned_keys,
+        pinned_apis,
+        bootstrap,
+    )
+    return selected_normal + selected_adult, selected_normal, selected_adult
 
 
 def generated_key(api: str, used: set) -> str:
@@ -532,6 +581,7 @@ def make_admin_plan(admin: Dict[str, Any], selected: List[Dict[str, Any]]) -> Di
     active_entries: List[Dict[str, Any]] = []
     selected_apis = set()
     selected_keys = set()
+    adult_keys: List[str] = []
     for row in selected:
         api_norm = row["normalized_api"]
         selected_apis.add(api_norm)
@@ -552,6 +602,8 @@ def make_admin_plan(admin: Dict[str, Any], selected: List[Dict[str, Any]]) -> Di
         })
         active_entries.append(entry)
         selected_keys.add(key)
+        if row.get("adult"):
+            adult_keys.append(key)
 
     disabled_entries: List[Dict[str, Any]] = []
     for old in current:
@@ -568,6 +620,7 @@ def make_admin_plan(admin: Dict[str, Any], selected: List[Dict[str, Any]]) -> Di
 
     new_admin = copy.deepcopy(admin)
     new_admin["SourceConfig"] = active_entries + disabled_entries
+    new_admin["SpecialSourceApis"] = adult_keys
 
     file_cfg = safe_config_file(admin)
     file_cfg["api_site"] = {
@@ -578,6 +631,7 @@ def make_admin_plan(admin: Dict[str, Any], selected: List[Dict[str, Any]]) -> Di
         }
         for entry in active_entries
     }
+    file_cfg["special_source_apis"] = adult_keys
     new_admin["ConfigFile"] = json.dumps(file_cfg, ensure_ascii=False, separators=(",", ":"))
     return new_admin
 
@@ -631,7 +685,7 @@ def write_reports(run_dir: Path, rows: List[Dict[str, Any]], selected: List[Dict
     atomic_write_json(run_dir / "summary.json", summary)
 
     fields = [
-        "key", "name", "api", "host", "was_active", "healthy", "grade", "success_rate",
+        "key", "name", "api", "host", "adult", "was_active", "healthy", "grade", "success_rate",
         "median_ms", "http_status", "format", "items_in_first_response", "success_streak",
         "fail_streak", "core_anchor", "pinned", "eligible", "error_type", "error", "attempt_ms",
     ]
@@ -642,12 +696,14 @@ def write_reports(run_dir: Path, rows: List[Dict[str, Any]], selected: List[Dict
             writer.writerow(row)
 
     lines = [
-        "MoonTV Core50 source maintenance",
+        "MoonTV Core50 + Adult source maintenance",
         f"time={summary['time']}",
         f"pool={summary['pool_count']}",
         f"healthy_now={summary['healthy_now']}",
         f"active_before={summary['active_before']}",
         f"selected={summary['selected_count']}",
+        f"normal_selected={summary.get('normal_selected', 0)}",
+        f"adult_selected={summary.get('adult_selected', 0)}",
         f"changed={summary['changed']}",
         f"bootstrap={summary['bootstrap']}",
         f"http={summary.get('http', '')}",
@@ -656,9 +712,9 @@ def write_reports(run_dir: Path, rows: List[Dict[str, Any]], selected: List[Dict
     ]
     for idx, row in enumerate(selected, 1):
         lines.append(
-            f"{idx:02d}. {row.get('name','')} | grade={row.get('grade')} | "
-            f"median={row.get('median_ms')}ms | core={row.get('core_anchor')} | "
-            f"active_before={row.get('was_active')}"
+            f"{idx:02d}. {row.get('name','')} | pool={'adult' if row.get('adult') else 'normal'} | "
+            f"grade={row.get('grade')} | median={row.get('median_ms')}ms | "
+            f"core={row.get('core_anchor')} | active_before={row.get('was_active')}"
         )
     (run_dir / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -686,13 +742,15 @@ def release_lock() -> None:
 
 
 def main() -> int:
-    global TARGET_ACTIVE
-    ap = argparse.ArgumentParser(description="MoonTV Core50 automatic source-pool maintenance")
+    global TARGET_ACTIVE, ADULT_TARGET
+    ap = argparse.ArgumentParser(description="MoonTV Core50 + Adult automatic source-pool maintenance")
     ap.add_argument("--dry-run", action="store_true", help="scan and plan but do not change admin:config")
-    ap.add_argument("--target", type=int, default=TARGET_ACTIVE, help="target active source count")
+    ap.add_argument("--target", type=int, default=TARGET_ACTIVE, help="target normal active source count")
+    ap.add_argument("--adult-target", type=int, default=ADULT_TARGET, help="target adult active source count")
     args = ap.parse_args()
 
     TARGET_ACTIVE = max(1, args.target)
+    ADULT_TARGET = max(1, args.adult_target)
 
     if UPDATER_LOCK.exists():
         print(f"MoonTV application updater is still running ({UPDATER_LOCK}); source maintenance skipped safely.")
@@ -715,24 +773,55 @@ def main() -> int:
         if not pool:
             raise RuntimeError("SourceConfig contains no usable sources")
 
+        existing_special_keys = set(admin.get("SpecialSourceApis") or [])
+        for row in pool:
+            row["adult"] = is_adult_source(row, existing_special_keys)
+
         core_anchor = ensure_core_anchor(pool)
         pinned_keys, pinned_apis = load_pins()
         old_state = load_json(STATE_FILE, {})
-        bootstrap = not bool(old_state.get("sources"))
+        bootstrap = (
+            not bool(old_state.get("sources"))
+            or old_state.get("pool_mode") != POOL_MODE
+        )
 
-        print("===== MoonTV Core50 source maintenance =====")
-        print(f"Pool: {len(pool)} | Current active: {len(active_api_set(admin))} | Target: {TARGET_ACTIVE}")
-        print(f"Core anchor: {len(core_anchor.get('apis', []))} | Bootstrap: {bootstrap}")
+        adult_pool_count = sum(1 for row in pool if row.get("adult"))
+        normal_pool_count = len(pool) - adult_pool_count
+
+        print("===== MoonTV Core50 + Adult source maintenance =====")
+        print(
+            f"Pool: {len(pool)} (normal={normal_pool_count}, adult={adult_pool_count}) | "
+            f"Current active: {len(active_api_set(admin))} | "
+            f"Targets: normal={TARGET_ACTIVE}, adult={ADULT_TARGET}"
+        )
+        print(f"Core anchor: {len(core_anchor.get('apis', []))} | Bootstrap/migration: {bootstrap}")
         print(f"Checks: attempts={ATTEMPTS}, workers={WORKERS}, timeout={TOTAL_TIMEOUT}s")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, WORKERS)) as ex:
             rows = list(ex.map(check_source, pool))
 
         state = update_streak_state(rows, old_state)
-        selected = choose_sources(rows, core_anchor, pinned_keys, pinned_apis, bootstrap)
+        selected, selected_normal, selected_adult = choose_sources(
+            rows, core_anchor, pinned_keys, pinned_apis, bootstrap
+        )
         selected_apis = {x["normalized_api"] for x in selected}
+        selected_adult_apis = {x["normalized_api"] for x in selected_adult}
         before_active = active_api_set(admin)
-        changed = before_active != selected_apis
+
+        source_by_key = {
+            str(item.get("key", "")): normalize_api(str(item.get("api", "")))
+            for item in (admin.get("SourceConfig") or [])
+            if isinstance(item, dict)
+        }
+        before_special_apis = {
+            source_by_key[key]
+            for key in (admin.get("SpecialSourceApis") or [])
+            if source_by_key.get(key)
+        }
+        changed = (
+            before_active != selected_apis
+            or before_special_apis != selected_adult_apis
+        )
 
         now = dt.datetime.now()
         stamp = now.strftime("%Y%m%d-%H%M%S")
@@ -745,14 +834,25 @@ def main() -> int:
             "healthy_now": healthy_now,
             "active_before": len(before_active),
             "selected_count": len(selected),
+            "normal_selected": len(selected_normal),
+            "adult_selected": len(selected_adult),
             "changed": changed,
             "bootstrap": bootstrap,
             "target": TARGET_ACTIVE,
+            "adult_target": ADULT_TARGET,
             "http": "",
         }
 
-        print(f"Healthy now: {healthy_now}/{len(rows)}")
-        print(f"Selected: {len(selected)}")
+        healthy_normal = sum(1 for x in rows if x.get("healthy") and not x.get("adult"))
+        healthy_adult = sum(1 for x in rows if x.get("healthy") and x.get("adult"))
+        print(
+            f"Healthy now: {healthy_now}/{len(rows)} "
+            f"(normal={healthy_normal}, adult={healthy_adult})"
+        )
+        print(
+            f"Selected: {len(selected)} "
+            f"(normal={len(selected_normal)}, adult={len(selected_adult)})"
+        )
         print(f"Config change needed: {'YES' if changed else 'NO'}")
 
         if args.dry_run:
@@ -766,7 +866,10 @@ def main() -> int:
             backup_dir.mkdir(parents=True, exist_ok=False)
             code = apply_admin_with_rollback(before_raw, new_admin, backup_dir)
             summary["http"] = code
-            print(f"SOURCE POOL UPDATE SUCCESS: active={len(selected)}, HTTP={code}")
+            print(
+                f"SOURCE POOL UPDATE SUCCESS: active={len(selected)} "
+                f"(normal={len(selected_normal)}, adult={len(selected_adult)}), HTTP={code}"
+            )
             print(f"Rollback copy: {backup_dir / 'admin-config.before.json'}")
         else:
             code = health_check(attempts=3, sleep_seconds=1)
