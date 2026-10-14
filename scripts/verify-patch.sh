@@ -24,6 +24,7 @@ COVERAGE_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-coverage.py"
 ADULT_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-home-customization.py"
 ADULT_NAV_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-navigation.py"
 USER_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-user-home-settings.py"
+ADULT_SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-search-isolation.py"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
@@ -34,6 +35,7 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$ADULT_HOME_SCRIPT" ]] || { echo "ERROR: missing $ADULT_HOME_SCRIPT" >&2; exit 2; }
 [[ -f "$ADULT_NAV_SCRIPT" ]] || { echo "ERROR: missing $ADULT_NAV_SCRIPT" >&2; exit 2; }
 [[ -f "$USER_HOME_SCRIPT" ]] || { echo "ERROR: missing $USER_HOME_SCRIPT" >&2; exit 2; }
+[[ -f "$ADULT_SEARCH_SCRIPT" ]] || { echo "ERROR: missing $ADULT_SEARCH_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 echo "Checking NAS maintenance script syntax..."
@@ -98,10 +100,13 @@ python3 "$ADULT_NAV_SCRIPT" .
 echo "Aligning UserMenu homepage settings..."
 python3 "$USER_HOME_SCRIPT" src/components/UserMenu.tsx
 
+echo "Applying adult special-source search isolation..."
+python3 "$ADULT_SEARCH_SCRIPT" .
+
 echo "Applying custom overlay files..."
 cp -a "$OVERLAY_DIR/." .
 
-git add   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts
+git add   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts   src/app/api/search/route.ts   src/app/api/search/ws/route.ts
 
 test -f Dockerfile.preview
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
@@ -120,6 +125,8 @@ grep -q "id: 'hotAdult', name: '热门成人'" src/components/UserMenu.tsx
 grep -q 'recognize explicit special-source play links' src/lib/special-source.client.ts
 grep -q "getAvailableApiSites(" src/app/api/adult/home/route.ts
 grep -q "SearchPageClient searchBase='/under'" src/app/under/page.tsx
+grep -q 'if (!specialOnly && !config.SiteConfig.DisableYellowFilter)' src/app/api/search/route.ts
+grep -q 'if (!specialOnly && !config.SiteConfig.DisableYellowFilter)' src/app/api/search/ws/route.ts
 
 git diff --cached --check
 
