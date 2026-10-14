@@ -61,15 +61,50 @@ old_saved = """    const savedHomeModules = localStorage.getItem('homeModules');
         console.error('解析首页模块配置失败:', error);
       }
     }"""
-new_saved = """    // Custom desktop layout: keep the main content order stable even when
-    // an older browser still has the previous MoonTV homeModules setting.
-    setHomeModules([
+new_saved = """    const preferredHomeModules: HomeModule[] = [
       { id: 'hotMovies', name: '热门电影', enabled: true, order: 0 },
       { id: 'hotAnime', name: '热门动漫', enabled: true, order: 1 },
       { id: 'hotTvShows', name: '热门电视剧', enabled: true, order: 2 },
       { id: 'hotVarietyShows', name: '热门综艺', enabled: true, order: 3 },
       { id: 'hotAdult', name: '热门成人', enabled: true, order: 4 },
-    ]);"""
+    ];
+
+    const savedHomeModules = localStorage.getItem('homeModules');
+    if (savedHomeModules) {
+      try {
+        const parsed = JSON.parse(savedHomeModules) as HomeModule[];
+        const desiredIds = preferredHomeModules.map((item) => item.id);
+        const parsedIds = parsed.map((item) => item.id);
+        const alreadyMigrated =
+          desiredIds.length === parsedIds.length &&
+          desiredIds.every((id) => parsedIds.includes(id));
+
+        if (alreadyMigrated) {
+          setHomeModules(parsed);
+        } else {
+          const oldById = new Map(parsed.map((item) => [item.id, item]));
+          const migrated = preferredHomeModules.map((item) => ({
+            ...item,
+            enabled: oldById.get(item.id)?.enabled ?? true,
+          }));
+          localStorage.setItem('homeModules', JSON.stringify(migrated));
+          setHomeModules(migrated);
+        }
+      } catch (error) {
+        console.error('解析首页模块配置失败:', error);
+        localStorage.setItem(
+          'homeModules',
+          JSON.stringify(preferredHomeModules)
+        );
+        setHomeModules(preferredHomeModules);
+      }
+    } else {
+      localStorage.setItem(
+        'homeModules',
+        JSON.stringify(preferredHomeModules)
+      );
+      setHomeModules(preferredHomeModules);
+    }"""
 replace_once(old_saved, new_saved, "saved home layout migration")
 
 replace_once(
