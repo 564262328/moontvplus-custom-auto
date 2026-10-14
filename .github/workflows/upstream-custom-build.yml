@@ -103,11 +103,16 @@ jobs:
           FORCE: ${{ github.event.inputs.force || 'false' }}
         run: |
           set -euo pipefail
-          if [[ "$FORCE" != "true" ]] && docker buildx imagetools inspect "${IMAGE}:${EXACT_TAG}" >/dev/null 2>&1; then
+          # Scheduled polling may skip an upstream commit that is already built.
+          # Push/manual runs must rebuild even when upstream SHA is unchanged,
+          # because our semantic adapters/custom behavior may have changed.
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$FORCE" != "true" ]] \
+             && docker buildx imagetools inspect "${IMAGE}:${EXACT_TAG}" >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Image already exists: ${IMAGE}:${EXACT_TAG}"
+            echo "Scheduled check: image already exists: ${IMAGE}:${EXACT_TAG}"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Building because event=${GITHUB_EVENT_NAME}, force=${FORCE}"
           fi
 
       - name: Apply and verify Custom UI
