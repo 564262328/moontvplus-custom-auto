@@ -44,7 +44,7 @@ old = r"""export function appendSpecialSourceParam(url: string): string {
   if (!isSpecialSourceContext()) return url;
   if (/[?&]special=1(&|$)/.test(url)) return url;
   const separator = url.includes('?') ? '&' : '?';
-  return \`\${url}\${separator}special=1\`;
+  return `${url}${separator}special=1`;
 }"""
 new = """export function appendSpecialSourceParam(url: string): string {
   // Preserve the special-source context when navigating from /under, and also
