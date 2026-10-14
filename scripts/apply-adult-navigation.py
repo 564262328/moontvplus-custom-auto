@@ -27,12 +27,12 @@ variety_block = """      {
 
 if "label: '成人'" not in sidebar_text:
     count = sidebar_text.count(variety_block)
-    if count != 2:
+    if count != 1:
         raise SystemExit(
-            f"ERROR: expected 2 Sidebar variety anchors, found {count}. "
+            f"ERROR: expected 1 runtime Sidebar variety anchor, found {count}. "
             "Upstream changed; stop instead of guessing."
         )
-    sidebar_text = sidebar_text.replace(variety_block, variety_block + adult_item)
+    sidebar_text = sidebar_text.replace(variety_block, variety_block + adult_item, 1)
 
 if "label: '成人'" not in sidebar_text or "href: SPECIAL_SOURCE_PATH" not in sidebar_text:
     raise SystemExit("ERROR: adult Sidebar item was not applied")
@@ -40,7 +40,7 @@ if "label: '成人'" not in sidebar_text or "href: SPECIAL_SOURCE_PATH" not in s
 sidebar.write_text(sidebar_text, encoding="utf-8")
 
 special_text = special.read_text(encoding="utf-8")
-old = """export function appendSpecialSourceParam(url: string): string {
+old = r"""export function appendSpecialSourceParam(url: string): string {
   if (!isSpecialSourceContext()) return url;
   if (/[?&]special=1(&|$)/.test(url)) return url;
   const separator = url.includes('?') ? '&' : '?';
