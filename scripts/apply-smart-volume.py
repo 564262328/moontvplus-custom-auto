@@ -145,7 +145,7 @@ if MARKER not in play_text:
         !graph.video.muted
       ) {
         graph.lastSampleAt = time;
-        graph.analyser.getFloatTimeDomainData(graph.samples);
+        graph.analyser.getFloatTimeDomainData(graph.samples as any);
 
         let sumSquares = 0;
         for (let i = 0; i < graph.samples.length; i += 1) {
@@ -355,12 +355,7 @@ if MARKER not in play_text:
               onSelect: function (item: any) {
                 const nextMode = item.value as SmartVolumeMode;
                 localStorage.setItem('smartVolumeMode', nextMode);
-                if (nextMode === 'off') {
-                  void applySmartVolumeMode('off');
-                } else {
-                  armSmartVolumeForCurrentPlayer();
-                  void applySmartVolumeMode(nextMode);
-                }
+                void applySmartVolumeMode(nextMode);
                 return item.html;
               },
               default: getSmartVolumeLabel(currentSmartVolumeMode),
