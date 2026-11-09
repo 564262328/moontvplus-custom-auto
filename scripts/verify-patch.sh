@@ -48,8 +48,13 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$HOME_POLISH_SCRIPT" ]] || { echo "ERROR: missing $HOME_POLISH_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
-echo "Checking NAS maintenance script syntax..."
+echo "Checking NAS maintenance and updater script syntax..."
 python3 -m py_compile "$AUTOMATION_ROOT/nas/moontv_source_maintenance.py"
+sh -n "$AUTOMATION_ROOT/nas/update-moontv.sh"
+sh -n "$AUTOMATION_ROOT/nas/update-now.sh"
+sh -n "$AUTOMATION_ROOT/nas/status.sh"
+sh -n "$AUTOMATION_ROOT/nas/backup-kvrocks.sh"
+sh -n "$AUTOMATION_ROOT/nas/test-kvrocks-backup.sh"
 
 cd "$UPSTREAM_DIR"
 git reset --hard HEAD
