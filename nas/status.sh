@@ -11,6 +11,12 @@ SKOPEO_IMAGE="${SKOPEO_IMAGE:-quay.io/skopeo/stable:latest}"
 SKOPEO_RETRY_TIMES="${SKOPEO_RETRY_TIMES:-10}"
 SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
 PULL_STRATEGY="${PULL_STRATEGY:-skopeo-first}"
+SKOPEO_PULL_TIMEOUT_SECONDS="${SKOPEO_PULL_TIMEOUT_SECONDS:-1500}"
+DOCKER_PULL_TIMEOUT_SECONDS="${DOCKER_PULL_TIMEOUT_SECONDS:-1200}"
+REGISTRY_PROXY_MODE="${REGISTRY_PROXY_MODE:-prefer}"
+REGISTRY_PROXY_URL="${REGISTRY_PROXY_URL:-http://127.0.0.1:7890}"
+REGISTRY_PROXY_PROBE_URL="${REGISTRY_PROXY_PROBE_URL:-https://ghcr.io/v2/}"
+REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS="${REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS:-8}"
 
 echo "===== MoonTV custom update status ====="
 
@@ -39,7 +45,19 @@ fi
 
 echo
 echo "Pull strategy: $PULL_STRATEGY"
-echo "Skopeo: $SKOPEO_IMAGE, retries=$SKOPEO_RETRY_TIMES, parallel=$SKOPEO_PARALLEL_COPIES"
+echo "Skopeo: $SKOPEO_IMAGE, retries=$SKOPEO_RETRY_TIMES, parallel=$SKOPEO_PARALLEL_COPIES, timeout=${SKOPEO_PULL_TIMEOUT_SECONDS}s"
+echo "Docker fallback timeout: ${DOCKER_PULL_TIMEOUT_SECONDS}s"
+echo "Registry proxy mode: $REGISTRY_PROXY_MODE"
+echo "Registry proxy URL : $REGISTRY_PROXY_URL"
+if [ "$REGISTRY_PROXY_MODE" = "off" ]; then
+  echo "Registry proxy test: disabled"
+elif curl -x "$REGISTRY_PROXY_URL" -sS -o /dev/null --max-time "$REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS" "$REGISTRY_PROXY_PROBE_URL" >/dev/null 2>&1; then
+  echo "Registry proxy test: reachable"
+else
+  echo "Registry proxy test: unavailable"
+fi
+echo "Last registry transport:"
+cat "$STATE_DIR/last-registry-transport" 2>/dev/null || echo "none"
 if [ "$KVROCKS_AUTO_RESTORE" = "1" ]; then
   echo "Kvrocks automatic production restore: ENABLED"
 else
@@ -62,8 +80,8 @@ echo "Container image ID:"
 docker inspect "$CONTAINER" --format '{{.Image}}' 2>/dev/null || true
 echo "Container image ref:"
 docker inspect "$CONTAINER" --format '{{.Config.Image}}' 2>/dev/null || true
-echo "Container version:"
-docker inspect "$CONTAINER" --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true
+echo "Container version / UI / revision:"
+docker inspect "$CONTAINER" --format 'Version={{index .Config.Labels "org.opencontainers.image.version"}} UI={{index .Config.Labels "io.moontvplus.custom.ui.version"}} Revision={{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || true
 
 echo
 echo "Kvrocks:"
