@@ -226,7 +226,7 @@ fetch_remote_metadata() {
 
 pull_with_skopeo_mode() {
   mode="$1"
-  helper_name="moontv-skopeo-pull-$"
+  helper_name="moontv-skopeo-pull-$(date +%s)"
 
   if [ "$mode" = "proxy" ]; then
     pull_timeout="$SKOPEO_PROXY_PULL_TIMEOUT_SECONDS"
