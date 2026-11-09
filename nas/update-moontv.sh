@@ -21,6 +21,8 @@ SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
 PULL_STRATEGY="${PULL_STRATEGY:-skopeo-first}"
 REMOTE_CHECK_RETRIES="${REMOTE_CHECK_RETRIES:-3}"
 REMOTE_CHECK_DELAY_SECONDS="${REMOTE_CHECK_DELAY_SECONDS:-10}"
+SKOPEO_PULL_TIMEOUT_SECONDS="${SKOPEO_PULL_TIMEOUT_SECONDS:-1500}"
+DOCKER_PULL_TIMEOUT_SECONDS="${DOCKER_PULL_TIMEOUT_SECONDS:-1200}"
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR" "$KVROCKS_BACKUP_ROOT"
 
@@ -125,6 +127,35 @@ fetch_remote_metadata() {
   return 1
 }
 
+run_with_timeout() {
+  limit="$1"
+  shift
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$limit" "$@"
+    return $?
+  fi
+
+  "$@" &
+  child=$!
+  started="$(date +%s)"
+
+  while kill -0 "$child" 2>/dev/null; do
+    now="$(date +%s)"
+    if [ $((now - started)) -ge "$limit" ]; then
+      echo "WARNING: command exceeded timeout of ${limit}s; terminating it." >&2
+      kill -TERM "$child" 2>/dev/null || true
+      sleep 3
+      kill -KILL "$child" 2>/dev/null || true
+      wait "$child" 2>/dev/null || true
+      return 124
+    fi
+    sleep 5
+  done
+
+  wait "$child"
+}
+
 pull_with_skopeo() {
   echo
   echo "===== Skopeo resilient image pull ====="
@@ -132,10 +163,43 @@ pull_with_skopeo() {
   echo "Retry times     : $SKOPEO_RETRY_TIMES"
   echo "Retry delay     : $SKOPEO_RETRY_DELAY"
   echo "Parallel copies : $SKOPEO_PARALLEL_COPIES"
+  echo "Hard timeout    : ${SKOPEO_PULL_TIMEOUT_SECONDS}s"
 
   ensure_skopeo || return 1
 
-  docker run --rm     -v /var/run/docker.sock:/var/run/docker.sock     "$SKOPEO_IMAGE"     copy     --retry-times "$SKOPEO_RETRY_TIMES"     --retry-delay "$SKOPEO_RETRY_DELAY"     --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"     "docker://$IMAGE"     "docker-daemon:$IMAGE"
+  helper_name="moontv-skopeo-pull-$"
+  cleanup_helper() {
+    docker rm -f "$helper_name" >/dev/null 2>&1 || true
+  }
+
+  trap 'cleanup_helper; rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+
+  if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"     docker run --name "$helper_name" --rm       -v /var/run/docker.sock:/var/run/docker.sock       "$SKOPEO_IMAGE"       copy       --retry-times "$SKOPEO_RETRY_TIMES"       --retry-delay "$SKOPEO_RETRY_DELAY"       --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"       "docker://$IMAGE"       "docker-daemon:$IMAGE"; then
+    cleanup_helper
+    trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+    return 0
+  fi
+
+  rc=$?
+  cleanup_helper
+  trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+  if [ "$rc" -eq 124 ]; then
+    echo "WARNING: Skopeo pull watchdog fired after ${SKOPEO_PULL_TIMEOUT_SECONDS}s." >&2
+  fi
+  return "$rc"
+}
+
+pull_with_docker() {
+  echo "Docker pull hard timeout: ${DOCKER_PULL_TIMEOUT_SECONDS}s"
+  if run_with_timeout "$DOCKER_PULL_TIMEOUT_SECONDS" pull_with_docker; then
+    return 0
+  fi
+
+  rc=$?
+  if [ "$rc" -eq 124 ]; then
+    echo "WARNING: Docker pull watchdog fired after ${DOCKER_PULL_TIMEOUT_SECONDS}s." >&2
+  fi
+  return "$rc"
 }
 
 pull_target_image() {
@@ -149,11 +213,11 @@ pull_target_image() {
         return 0
       fi
       echo "WARNING: Skopeo pull failed; trying normal docker pull once." >&2
-      docker pull "$IMAGE"
+      pull_with_docker
       ;;
     docker-first)
       echo "Pulling tested stable image with Docker..."
-      if docker pull "$IMAGE"; then
+      if pull_with_docker; then
         echo "Docker pull succeeded."
         return 0
       fi
