@@ -18,6 +18,7 @@ PATCH_FILE="$(cd "$(dirname "$PATCH_FILE")" && pwd)/$(basename "$PATCH_FILE")"
 AUTOMATION_ROOT="$(cd "$(dirname "$PATCH_FILE")/.." && pwd)"
 CSS_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.7.1.css"
 CSS_V19_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.9.css"
+CSS_V191_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.9.1.css"
 VIDEO_SCRIPT="$AUTOMATION_ROOT/scripts/apply-videocard-customization.py"
 SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-customization.py"
 SIDEBAR_SCRIPT="$AUTOMATION_ROOT/scripts/apply-sidebar-customization.py"
@@ -33,6 +34,7 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
 [[ -f "$CSS_V19_FILE" ]] || { echo "ERROR: missing $CSS_V19_FILE" >&2; exit 2; }
+[[ -f "$CSS_V191_FILE" ]] || { echo "ERROR: missing $CSS_V191_FILE" >&2; exit 2; }
 [[ -f "$VIDEO_SCRIPT" ]] || { echo "ERROR: missing $VIDEO_SCRIPT" >&2; exit 2; }
 [[ -f "$SEARCH_SCRIPT" ]] || { echo "ERROR: missing $SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SIDEBAR_SCRIPT" ]] || { echo "ERROR: missing $SIDEBAR_SCRIPT" >&2; exit 2; }
@@ -91,6 +93,12 @@ if ! grep -q 'MoonTVPlus Custom UI V1.9' src/app/globals.css; then
   cat "$CSS_V19_FILE" >> src/app/globals.css
 fi
 
+echo "Appending V1.9.1 screenshot-calibrated polish..."
+if ! grep -q 'MoonTVPlus Custom UI V1.9.1' src/app/globals.css; then
+  printf '\n\n' >> src/app/globals.css
+  cat "$CSS_V191_FILE" >> src/app/globals.css
+fi
+
 echo "Applying semantic VideoCard class hooks..."
 python3 "$VIDEO_SCRIPT" src/components/VideoCard.tsx
 
@@ -140,6 +148,7 @@ grep -q '<UserMenu desktopBridge />' src/components/PageLayout.tsx
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
 grep -q 'MoonTVPlus Custom UI V1.7.1 Detail Grid Hotfix' src/app/globals.css
 grep -q 'MoonTVPlus Custom UI V1.9' src/app/globals.css
+grep -q 'MoonTVPlus Custom UI V1.9.1' src/app/globals.css
 grep -q 'media-card-rating' src/components/VideoCard.tsx
 grep -q 'media-card-title' src/components/VideoCard.tsx
 grep -q 'moontv-search-input' "$SEARCH_TARGET"
