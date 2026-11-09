@@ -26,6 +26,7 @@ ADULT_NAV_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-navigation.py"
 USER_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-user-home-settings.py"
 ADULT_SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-search-isolation.py"
 SMART_VOLUME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-smart-volume.py"
+SHELL_SCRIPT="$AUTOMATION_ROOT/scripts/apply-shell-customization.py"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
@@ -38,6 +39,7 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$USER_HOME_SCRIPT" ]] || { echo "ERROR: missing $USER_HOME_SCRIPT" >&2; exit 2; }
 [[ -f "$ADULT_SEARCH_SCRIPT" ]] || { echo "ERROR: missing $ADULT_SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SMART_VOLUME_SCRIPT" ]] || { echo "ERROR: missing $SMART_VOLUME_SCRIPT" >&2; exit 2; }
+[[ -f "$SHELL_SCRIPT" ]] || { echo "ERROR: missing $SHELL_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 echo "Checking NAS maintenance script syntax..."
@@ -69,6 +71,9 @@ if grep -RIl --exclude-dir=.git '^<<<<<<< ' . >/dev/null 2>&1; then
   echo "ERROR: conflict markers detected after structural patch application." >&2
   exit 21
 fi
+
+echo "Applying semantic shell hooks..."
+python3 "$SHELL_SCRIPT" .
 
 echo "Appending versioned custom CSS without relying on upstream globals.css line numbers..."
 if ! grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css; then
@@ -111,9 +116,14 @@ python3 "$SMART_VOLUME_SCRIPT" .
 echo "Applying custom overlay files..."
 cp -a "$OVERLAY_DIR/." .
 
-git add   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/app/play/page.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts   src/app/api/search/route.ts   src/app/api/search/ws/route.ts
+git add   src/components/MobileHeader.tsx   src/components/PageLayout.tsx   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/app/play/page.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts   src/app/api/search/route.ts   src/app/api/search/ws/route.ts
 
 test -f Dockerfile.preview
+grep -q 'mobile-header' src/components/MobileHeader.tsx
+grep -q 'mobile-logo' src/components/MobileHeader.tsx
+grep -q 'moontv-shell' src/components/PageLayout.tsx
+grep -q 'desktop-top-actions' src/components/PageLayout.tsx
+grep -q '<UserMenu desktopBridge />' src/components/PageLayout.tsx
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
 grep -q 'MoonTVPlus Custom UI V1.7.1 Detail Grid Hotfix' src/app/globals.css
 grep -q 'media-card-rating' src/components/VideoCard.tsx
