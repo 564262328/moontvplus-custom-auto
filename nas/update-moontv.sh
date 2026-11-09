@@ -158,7 +158,7 @@ run_skopeo_inspect() {
   if [ "$mode" = "proxy" ]; then
     run_with_timeout "$REMOTE_INSPECT_TIMEOUT_SECONDS"       docker run --rm         --network host         -e HTTP_PROXY="$REGISTRY_PROXY_URL"         -e HTTPS_PROXY="$REGISTRY_PROXY_URL"         -e ALL_PROXY="$REGISTRY_PROXY_URL"         -e NO_PROXY='localhost,127.0.0.1,::1'         "$SKOPEO_IMAGE"         inspect "docker://$IMAGE"
   else
-    run_with_timeout "$REMOTE_INSPECT_TIMEOUT_SECONDS"       docker run --rm         "$SKOPEO_IMAGE"         inspect "docker://$IMAGE"
+    run_with_timeout "$REMOTE_INSPECT_TIMEOUT_SECONDS"       docker run --rm         --network host         -e HTTP_PROXY= -e HTTPS_PROXY= -e ALL_PROXY=         -e http_proxy= -e https_proxy= -e all_proxy=         "$SKOPEO_IMAGE"         inspect "docker://$IMAGE"
   fi
 }
 
@@ -187,10 +187,19 @@ fetch_remote_metadata() {
   while [ "$attempt" -le "$REMOTE_CHECK_RETRIES" ]; do
     echo "Checking remote stable metadata (attempt $attempt/$REMOTE_CHECK_RETRIES)..."
 
-    proxy_ok=0
+    if [ "$REGISTRY_PROXY_MODE" != "force" ]; then
+      echo "Trying direct registry metadata check first..."
+      if inspect_remote_once direct; then
+        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
+        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
+        echo "Registry metadata transport: direct"
+        return 0
+      fi
+      echo "WARNING: direct metadata check failed." >&2
+    fi
+
     if proxy_available; then
-      proxy_ok=1
-      echo "Registry proxy: available; trying proxy first."
+      echo "Trying proxy registry metadata check..."
       if inspect_remote_once proxy; then
         printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
         date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
@@ -198,20 +207,8 @@ fetch_remote_metadata() {
         return 0
       fi
       echo "WARNING: proxy metadata check failed." >&2
-    fi
-
-    if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
-      if [ "$proxy_ok" -eq 0 ]; then
-        echo "WARNING: registry proxy is unavailable and proxy mode is force." >&2
-      fi
-    else
-      echo "Trying direct registry metadata check..."
-      if inspect_remote_once direct; then
-        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
-        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
-        echo "Registry metadata transport: direct"
-        return 0
-      fi
+    elif [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+      echo "WARNING: forced proxy unavailable." >&2
     fi
 
     if [ "$attempt" -lt "$REMOTE_CHECK_RETRIES" ]; then
@@ -255,7 +252,7 @@ pull_with_skopeo_mode() {
       rc=$?
     fi
   else
-    if run_with_timeout "$pull_timeout"       docker run --name "$helper_name" --rm         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
+    if run_with_timeout "$pull_timeout"       docker run --name "$helper_name" --rm         --network host         -e HTTP_PROXY= -e HTTPS_PROXY= -e ALL_PROXY=         -e http_proxy= -e https_proxy= -e all_proxy=         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
       rc=0
     else
       rc=$?
@@ -279,25 +276,25 @@ pull_with_skopeo_mode() {
 pull_with_skopeo() {
   ensure_skopeo || return 1
 
-  proxy_ok=0
+  if [ "$REGISTRY_PROXY_MODE" != "force" ]; then
+    echo "Trying direct Skopeo pull first..."
+    if pull_with_skopeo_mode direct; then
+      return 0
+    fi
+    echo "WARNING: direct Skopeo pull failed." >&2
+  fi
+
   if proxy_available; then
-    proxy_ok=1
-    echo "Registry proxy is available; Skopeo will use it first."
+    echo "Trying proxied Skopeo pull..."
     if pull_with_skopeo_mode proxy; then
       return 0
     fi
     echo "WARNING: proxied Skopeo pull failed." >&2
+  elif [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+    echo "ERROR: forced proxy unavailable." >&2
   fi
 
-  if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
-    if [ "$proxy_ok" -eq 0 ]; then
-      echo "ERROR: proxy mode is force but the registry proxy is unavailable." >&2
-    fi
-    return 1
-  fi
-
-  echo "Trying direct Skopeo pull..."
-  pull_with_skopeo_mode direct
+  return 1
 }
 
 pull_with_docker() {
