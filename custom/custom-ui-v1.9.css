@@ -1,0 +1,607 @@
+/* ========================================================================
+   MoonTVPlus Custom UI V1.9
+   Desktop polish: denser media library, calmer surfaces, restrained motion.
+   CSS-only whenever possible. Business logic remains untouched.
+   ======================================================================== */
+
+:root {
+  --mtv-v19-sidebar-width: 202px;
+  --mtv-v19-sidebar-collapsed: 68px;
+  --mtv-v19-page-pad: clamp(18px, 1.8vw, 32px);
+  --mtv-v19-text: #172033;
+  --mtv-v19-muted: rgba(71, 85, 105, 0.76);
+  --mtv-v19-line: rgba(15, 23, 42, 0.075);
+  --mtv-v19-panel: rgba(255, 255, 255, 0.94);
+  --mtv-v19-panel-soft: rgba(248, 250, 252, 0.82);
+  --mtv-v19-adult: #8b5166;
+  --mtv-v19-adult-soft: rgba(139, 81, 102, 0.12);
+}
+
+.dark {
+  --mtv-v19-text: rgba(244, 247, 251, 0.94);
+  --mtv-v19-muted: rgba(203, 213, 225, 0.68);
+  --mtv-v19-line: rgba(255, 255, 255, 0.072);
+  --mtv-v19-panel: rgba(9, 13, 19, 0.96);
+  --mtv-v19-panel-soft: rgba(17, 23, 32, 0.9);
+  --mtv-v19-adult: #b7768f;
+  --mtv-v19-adult-soft: rgba(183, 118, 143, 0.12);
+}
+
+/* ------------------------------------------------------------------------
+   App canvas
+   ------------------------------------------------------------------------ */
+
+.dark body {
+  background:
+    radial-gradient(circle at 78% -12%, rgba(34, 197, 94, 0.055), transparent 30%),
+    #06080c !important;
+}
+
+.moontv-shell {
+  color: var(--mtv-v19-text);
+}
+
+.moontv-main {
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------------
+   Sidebar: narrower, calmer, more media-center-like.
+   ------------------------------------------------------------------------ */
+
+.pro-sidebar[data-collapsed='false'],
+.pro-sidebar-offset[data-collapsed='false'] {
+  width: var(--mtv-v19-sidebar-width) !important;
+}
+
+.pro-sidebar[data-collapsed='true'],
+.pro-sidebar-offset[data-collapsed='true'] {
+  width: var(--mtv-v19-sidebar-collapsed) !important;
+}
+
+.pro-sidebar {
+  background: rgba(248, 250, 252, 0.94) !important;
+  border-right: 1px solid var(--mtv-v19-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.dark .pro-sidebar {
+  background: rgba(6, 9, 14, 0.965) !important;
+  box-shadow: none !important;
+}
+
+.pro-sidebar::before {
+  height: 110px !important;
+  opacity: 0.42 !important;
+}
+
+.pro-sidebar .pro-logo-text {
+  font-size: 1.28rem !important;
+  font-weight: 720 !important;
+}
+
+.pro-sidebar .pro-nav-item {
+  min-height: 39px !important;
+  margin-bottom: 2px !important;
+  border-radius: 9px !important;
+  font-size: 0.84rem !important;
+  font-weight: 540 !important;
+}
+
+.pro-sidebar .pro-nav-item svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 1.8 !important;
+}
+
+.pro-sidebar .pro-nav-item:hover {
+  border-color: transparent !important;
+  background: rgba(34, 197, 94, 0.065) !important;
+}
+
+.pro-sidebar .pro-nav-item[data-active='true'] {
+  border-color: transparent !important;
+  background: rgba(34, 197, 94, 0.115) !important;
+  box-shadow: none !important;
+  color: var(--mtv-accent-strong) !important;
+}
+
+.dark .pro-sidebar .pro-nav-item[data-active='true'] {
+  background: rgba(34, 197, 94, 0.105) !important;
+}
+
+.pro-sidebar-personal {
+  margin: 6px 8px 10px !important;
+  padding: 7px 5px 5px !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Adult nav stays understated. */
+.pro-sidebar a[href='/under'],
+.pro-sidebar button[aria-label='成人'] {
+  color: inherit;
+}
+
+/* ------------------------------------------------------------------------
+   Top tools
+   ------------------------------------------------------------------------ */
+
+.desktop-top-actions {
+  top: 10px !important;
+  right: 12px !important;
+  gap: 1px !important;
+  padding: 3px !important;
+  border: 1px solid var(--mtv-v19-line) !important;
+  border-radius: 12px !important;
+  background: rgba(248, 250, 252, 0.78) !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+}
+
+.dark .desktop-top-actions {
+  background: rgba(9, 13, 19, 0.76) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24) !important;
+}
+
+.desktop-top-actions > button,
+.desktop-top-actions > div > button {
+  width: 33px !important;
+  height: 33px !important;
+  padding: 7px !important;
+  border-radius: 9px !important;
+}
+
+/* ------------------------------------------------------------------------
+   Hero: cinematic, less loud.
+   ------------------------------------------------------------------------ */
+
+.hero-wrap {
+  padding: 10px 12px 0 !important;
+  margin-bottom: 10px !important;
+}
+
+.hero-banner {
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 42px rgba(2, 6, 12, 0.18) !important;
+}
+
+.dark .hero-banner {
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38) !important;
+}
+
+.hero-banner::after {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+}
+
+.hero-content {
+  padding: clamp(1.8rem, 3.3vw, 3.6rem) !important;
+}
+
+.hero-content > div {
+  max-width: min(600px, 54vw) !important;
+}
+
+.hero-title {
+  margin-bottom: 10px !important;
+  font-size: clamp(2.2rem, 3.6vw, 3.85rem) !important;
+  font-weight: 760 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.046em !important;
+}
+
+.hero-meta {
+  margin-bottom: 10px !important;
+}
+
+.hero-meta > span {
+  min-height: 22px !important;
+  padding: 2px 7px !important;
+  font-size: 0.72rem !important;
+}
+
+.hero-play-button {
+  min-height: 40px !important;
+  margin-bottom: 10px !important;
+  padding-inline: 17px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  font-size: 0.84rem !important;
+}
+
+.hero-overview {
+  max-width: 54ch !important;
+  font-size: 0.82rem !important;
+  line-height: 1.52 !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.hero-dots {
+  bottom: 11px !important;
+}
+
+/* ------------------------------------------------------------------------
+   Home rhythm
+   ------------------------------------------------------------------------ */
+
+.home-content {
+  padding-left: var(--mtv-v19-page-pad) !important;
+  padding-right: var(--mtv-v19-page-pad) !important;
+  padding-top: 2px !important;
+}
+
+.home-content > div {
+  max-width: 1840px !important;
+  padding-inline: 0 !important;
+}
+
+.home-quick-actions {
+  margin-bottom: 10px !important;
+  min-height: 31px !important;
+}
+
+.home-section {
+  margin-bottom: 1.75rem !important;
+}
+
+.section-heading-row {
+  min-height: 30px;
+  margin-bottom: 8px !important;
+  padding: 0 2px !important;
+}
+
+.section-heading {
+  gap: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 660 !important;
+  letter-spacing: -0.018em !important;
+  color: var(--mtv-v19-text) !important;
+}
+
+.section-heading::before {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: var(--mtv-accent) !important;
+  box-shadow: none !important;
+}
+
+.section-more {
+  padding: 5px 2px !important;
+  border-radius: 7px !important;
+  font-size: 0.75rem !important;
+  opacity: 0.62;
+  background: transparent !important;
+}
+
+.section-more svg {
+  transform: translateX(-2px);
+  opacity: 0;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.section-more:hover {
+  opacity: 1;
+  color: var(--mtv-accent-strong) !important;
+}
+
+.section-more:hover svg {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Adult category gets only a small identity cue. */
+.home-section-adult .section-heading::before {
+  background: var(--mtv-v19-adult) !important;
+}
+
+.home-section-adult .section-heading {
+  color: color-mix(in srgb, var(--mtv-v19-text) 90%, var(--mtv-v19-adult)) !important;
+}
+
+.home-section-adult .section-more:hover {
+  color: var(--mtv-v19-adult) !important;
+}
+
+/* ------------------------------------------------------------------------
+   Denser desktop media shelves
+   ------------------------------------------------------------------------ */
+
+.media-row {
+  gap: 0.72rem !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+  padding-top: 4px !important;
+}
+
+.home-section:not(.continue-watching) .media-row > div {
+  min-width: 148px !important;
+  width: 148px !important;
+}
+
+.media-card {
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.75, 0.22, 1),
+    filter 180ms ease !important;
+}
+
+.media-card:hover {
+  transform: translateY(-3px) !important;
+  filter: brightness(1.025);
+}
+
+.media-card-poster,
+.media-card-image-shell {
+  border-radius: 11px !important;
+}
+
+.media-card-poster {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.095) !important;
+}
+
+.dark .media-card-poster {
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.26) !important;
+}
+
+.media-card:hover .media-card-poster {
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.15) !important;
+}
+
+.dark .media-card:hover .media-card-poster {
+  box-shadow: 0 13px 30px rgba(0, 0, 0, 0.36) !important;
+}
+
+.media-card-rating {
+  top: 6px !important;
+  right: 6px !important;
+  min-width: 30px !important;
+  height: 21px !important;
+  padding-inline: 6px !important;
+  border: 0 !important;
+  font-size: 0.65rem !important;
+  background: rgba(7, 10, 14, 0.76) !important;
+}
+
+.media-card-caption {
+  margin-top: 7px !important;
+  min-height: 34px;
+}
+
+.media-card-title {
+  display: -webkit-box !important;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 0.79rem !important;
+  font-weight: 570 !important;
+  line-height: 1.34 !important;
+  color: var(--mtv-v19-text) !important;
+}
+
+/* Continue Watching remains wider and more prominent than poster shelves. */
+.continue-watching {
+  padding: 10px 12px 4px;
+  border: 1px solid var(--mtv-v19-line);
+  border-radius: 16px;
+  background: var(--mtv-v19-panel-soft);
+}
+
+.dark .continue-watching {
+  background: rgba(12, 17, 24, 0.74);
+}
+
+.continue-watching .section-heading {
+  font-weight: 700 !important;
+}
+
+.continue-watching .media-card-poster {
+  box-shadow: none !important;
+}
+
+.continue-watching .media-card-progress-track {
+  height: 3px !important;
+  border-radius: 999px;
+}
+
+/* ------------------------------------------------------------------------
+   Search
+   ------------------------------------------------------------------------ */
+
+.moontv-search-page {
+  max-width: 1840px !important;
+}
+
+.moontv-search-form {
+  max-width: 700px !important;
+}
+
+.moontv-search-form > .relative {
+  filter: none !important;
+}
+
+.moontv-search-input {
+  height: 52px !important;
+  border-radius: 14px !important;
+  border-color: var(--mtv-v19-line) !important;
+  background: var(--mtv-v19-panel) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.055) !important;
+  font-size: 0.92rem !important;
+}
+
+.dark .moontv-search-input {
+  background: rgba(11, 16, 23, 0.94) !important;
+  box-shadow: none !important;
+}
+
+.moontv-search-input:focus {
+  border-color: rgba(34, 197, 94, 0.36) !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.075) !important;
+}
+
+/* ------------------------------------------------------------------------
+   Panels and detail: one visual language, less glass.
+   ------------------------------------------------------------------------ */
+
+.moontv-surface-backdrop,
+.moontv-detail-overlay > div:first-child {
+  background: rgba(2, 5, 10, 0.64) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.moontv-library-panel,
+.moontv-personal-panel,
+.moontv-detail-panel,
+.moontv-local-settings-panel,
+.moontv-user-menu-panel {
+  border-color: var(--mtv-v19-line) !important;
+  background: var(--mtv-v19-panel) !important;
+  box-shadow: 0 24px 72px rgba(2, 6, 16, 0.22) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.dark .moontv-library-panel,
+.dark .moontv-personal-panel,
+.dark .moontv-detail-panel,
+.dark .moontv-local-settings-panel,
+.dark .moontv-user-menu-panel {
+  background: rgba(8, 12, 18, 0.98) !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5) !important;
+}
+
+.moontv-library-panel {
+  border-radius: 20px !important;
+}
+
+.moontv-library-panel > div:first-child,
+.moontv-detail-header {
+  min-height: 62px !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.moontv-library-body {
+  padding: 20px 22px 26px !important;
+}
+
+.moontv-library-grid {
+  gap-x: 18px !important;
+  gap-y: 52px !important;
+}
+
+.moontv-personal-panel {
+  border-radius: 20px !important;
+}
+
+.moontv-personal-panel [data-panel-content] {
+  padding: 24px !important;
+}
+
+.moontv-detail-panel:not(.moontv-detail-drawer) {
+  width: min(1040px, calc(100vw - 56px)) !important;
+  border-radius: 20px !important;
+}
+
+.moontv-detail-drawer {
+  border-radius: 20px 0 0 20px !important;
+}
+
+.moontv-detail-scroll img {
+  border-radius: 12px;
+}
+
+.moontv-local-settings-panel {
+  border-radius: 20px !important;
+}
+
+/* ------------------------------------------------------------------------
+   Responsive density
+   ------------------------------------------------------------------------ */
+
+@media (min-width: 1536px) {
+  .home-section:not(.continue-watching) .media-row > div {
+    min-width: 154px !important;
+    width: 154px !important;
+  }
+
+  .media-row {
+    gap: 0.78rem !important;
+  }
+}
+
+@media (min-width: 1920px) {
+  .home-section:not(.continue-watching) .media-row > div {
+    min-width: 160px !important;
+    width: 160px !important;
+  }
+
+  .home-content {
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+  }
+}
+
+@media (max-width: 1279px) and (min-width: 768px) {
+  .home-section:not(.continue-watching) .media-row > div {
+    min-width: 142px !important;
+    width: 142px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .home-content {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .continue-watching {
+    margin-inline: 4px;
+    padding: 8px 6px 2px;
+    border-radius: 14px;
+  }
+
+  .section-heading {
+    font-size: 0.98rem !important;
+  }
+
+  .section-heading::before {
+    width: 5px !important;
+    height: 5px !important;
+  }
+
+  .home-section:not(.continue-watching) .media-row > div {
+    min-width: 102px !important;
+    width: 102px !important;
+  }
+
+  .media-card-title {
+    font-size: 0.76rem !important;
+  }
+
+  .moontv-search-input {
+    height: 50px !important;
+    border-radius: 13px !important;
+  }
+}
+
+/* Respect reduced-motion users and keep the UI calm on low-power clients. */
+@media (prefers-reduced-motion: reduce) {
+  .media-card,
+  .media-card-poster,
+  .section-more svg,
+  .desktop-top-actions > button,
+  .desktop-top-actions > div > button {
+    transition: none !important;
+    transform: none !important;
+  }
+}
