@@ -1,0 +1,173 @@
+/* ========================================================================
+   MoonTVPlus Custom UI V1.9.1
+   Screenshot-calibrated micro polish. No layout or business-logic changes.
+   ======================================================================== */
+
+/* Sidebar personal shortcuts: remove the detached "control box" look. */
+.pro-sidebar-personal {
+  margin: 8px 10px 10px !important;
+  padding: 10px 5px 2px !important;
+  border: 0 !important;
+  border-top: 1px solid var(--mtv-v19-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pro-sidebar[data-collapsed='true'] .pro-sidebar-personal {
+  margin-left: 9px !important;
+  margin-right: 9px !important;
+  padding-top: 9px !important;
+}
+
+/* Header tools should stay discoverable without becoming a visual anchor. */
+.desktop-top-actions {
+  opacity: 0.88;
+  transition: opacity 160ms ease, background-color 160ms ease !important;
+}
+
+.desktop-top-actions:hover,
+.desktop-top-actions:focus-within {
+  opacity: 1;
+}
+
+/* Hero copy: slightly calmer measure and more readable rhythm. */
+.hero-content > div {
+  max-width: min(570px, 52vw) !important;
+}
+
+.hero-overview {
+  max-width: 49ch !important;
+  line-height: 1.6 !important;
+  color: rgba(255, 255, 255, 0.76) !important;
+}
+
+.hero-meta {
+  row-gap: 6px !important;
+}
+
+/* Section marker: a tiny editorial accent instead of a status LED. */
+.section-heading {
+  gap: 7px !important;
+}
+
+.section-heading::before {
+  width: 3px !important;
+  height: 9px !important;
+  border-radius: 999px !important;
+  opacity: 0.92;
+}
+
+/* "View more" remains quiet but is easier to discover at rest. */
+.section-more {
+  opacity: 0.76 !important;
+  color: var(--mtv-v19-muted) !important;
+}
+
+.section-more svg {
+  opacity: 0.38;
+  transform: translateX(-1px);
+}
+
+.section-more:hover {
+  opacity: 1 !important;
+}
+
+.section-more:hover svg {
+  opacity: 1;
+  transform: translateX(1px);
+}
+
+/* Adult shelf keeps the muted wine cue, never a loud 18+ treatment. */
+.home-section-adult .section-heading::before {
+  opacity: 0.82;
+}
+
+/* Rating chips: smaller, softer, and subordinate to the poster artwork. */
+.media-card-rating {
+  top: 6px !important;
+  right: 6px !important;
+  min-width: 27px !important;
+  height: 19px !important;
+  padding-inline: 5px !important;
+  font-size: 0.59rem !important;
+  font-weight: 650 !important;
+  opacity: 0.92;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Poster feedback: one consistent, restrained hover gesture. */
+.media-card-image-shell {
+  overflow: hidden;
+}
+
+.media-card-image-shell img {
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.75, 0.22, 1),
+    filter 220ms ease !important;
+}
+
+.media-card:hover .media-card-image-shell img {
+  transform: scale(1.012);
+  filter: brightness(1.035);
+}
+
+/* Continue Watching should feel integrated into the feed, not a dashboard card. */
+.continue-watching {
+  padding: 9px 11px 3px !important;
+  border-color: rgba(15, 23, 42, 0.045) !important;
+  background: rgba(248, 250, 252, 0.5) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.dark .continue-watching {
+  border-color: rgba(255, 255, 255, 0.035) !important;
+  background: rgba(12, 17, 24, 0.43) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.018);
+}
+
+.continue-watching .section-heading::before {
+  opacity: 0.82;
+}
+
+.continue-watching .media-card:hover {
+  transform: translateY(-2px) !important;
+}
+
+/* Keep interactive motion coherent and subtle. */
+.media-card,
+.media-card-image-shell img,
+.section-more,
+.section-more svg,
+.desktop-top-actions {
+  will-change: auto;
+}
+
+@media (max-width: 767px) {
+  .desktop-top-actions {
+    opacity: 1;
+  }
+
+  .section-heading::before {
+    width: 3px !important;
+    height: 8px !important;
+  }
+
+  .continue-watching {
+    padding: 8px 6px 2px !important;
+  }
+
+  .media-card-rating {
+    min-width: 26px !important;
+    height: 18px !important;
+    font-size: 0.58rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-card-image-shell img,
+  .desktop-top-actions {
+    transition: none !important;
+    transform: none !important;
+  }
+}
