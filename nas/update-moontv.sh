@@ -298,6 +298,11 @@ pull_with_skopeo() {
 }
 
 pull_with_docker() {
+  if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+    echo "ERROR: Docker direct pull is forbidden when REGISTRY_PROXY_MODE=force." >&2
+    return 1
+  fi
+
   echo "Docker pull hard timeout: ${DOCKER_PULL_TIMEOUT_SECONDS}s"
   echo "NOTE: Docker daemon pull is a direct fallback and does not inherit the Skopeo proxy settings."
 
@@ -315,6 +320,20 @@ pull_with_docker() {
 }
 
 pull_target_image() {
+  if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+    case "$PULL_STRATEGY" in
+      skopeo|skopeo-first|docker-first)
+        echo "Forced proxy mode: using Skopeo proxy only; Docker direct fallback disabled."
+        pull_with_skopeo
+        return $?
+        ;;
+      *)
+        echo "ERROR: unsupported PULL_STRATEGY=$PULL_STRATEGY." >&2
+        return 1
+        ;;
+    esac
+  fi
+
   case "$PULL_STRATEGY" in
     skopeo)
       pull_with_skopeo
