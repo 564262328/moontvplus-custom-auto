@@ -372,11 +372,12 @@ if [ -f "$LAST_GOOD_REMOTE_DIGEST" ] && [ "$(cat "$LAST_GOOD_REMOTE_DIGEST" 2>/d
   exit 0
 fi
 
-# Bootstrap the digest state without a large pull when the running container is
-# already the exact same upstream/UI build as remote stable.
-if [ ! -f "$LAST_GOOD_REMOTE_DIGEST" ]   && [ -n "$REMOTE_REVISION" ]   && [ "$CURRENT_REVISION" = "$REMOTE_REVISION" ]   && [ "$CURRENT_VERSION" = "$REMOTE_VERSION" ]   && [ "$CURRENT_UI" = "$REMOTE_UI" ]; then
+# Synchronize digest state without a large pull whenever the running container
+# already matches the exact remote upstream/UI metadata. This also covers a
+# manual safe deployment where the digest marker still points at the prior tag.
+if [ -n "$REMOTE_REVISION" ]   && [ "$CURRENT_REVISION" = "$REMOTE_REVISION" ]   && [ "$CURRENT_VERSION" = "$REMOTE_VERSION" ]   && [ "$CURRENT_UI" = "$REMOTE_UI" ]; then
   printf '%s\n' "$REMOTE_DIGEST" > "$LAST_GOOD_REMOTE_DIGEST"
-  echo "Running container already matches remote stable metadata. Digest state initialized; no download needed."
+  echo "Running container already matches remote stable metadata. Digest state synchronized; no download needed."
   exit 0
 fi
 
