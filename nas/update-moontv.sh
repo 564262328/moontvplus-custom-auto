@@ -191,7 +191,7 @@ pull_with_skopeo() {
 
 pull_with_docker() {
   echo "Docker pull hard timeout: ${DOCKER_PULL_TIMEOUT_SECONDS}s"
-  if run_with_timeout "$DOCKER_PULL_TIMEOUT_SECONDS" pull_with_docker; then
+  if run_with_timeout "$DOCKER_PULL_TIMEOUT_SECONDS" docker pull "$IMAGE"; then
     return 0
   fi
 
