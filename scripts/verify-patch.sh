@@ -55,6 +55,11 @@ sh -n "$AUTOMATION_ROOT/nas/update-now.sh"
 sh -n "$AUTOMATION_ROOT/nas/status.sh"
 sh -n "$AUTOMATION_ROOT/nas/backup-kvrocks.sh"
 sh -n "$AUTOMATION_ROOT/nas/test-kvrocks-backup.sh"
+grep -q 'REGISTRY_PROXY_MODE' "$AUTOMATION_ROOT/nas/update-moontv.sh"
+grep -Fq 'helper_name="moontv-skopeo-pull-$"' "$AUTOMATION_ROOT/nas/update-moontv.sh"
+grep -q 'SKOPEO_PROXY_PULL_TIMEOUT_SECONDS' "$AUTOMATION_ROOT/nas/update-moontv.sh"
+grep -q 'SKOPEO_DIRECT_PULL_TIMEOUT_SECONDS' "$AUTOMATION_ROOT/nas/update-moontv.sh"
+grep -q 'Registry proxy test:' "$AUTOMATION_ROOT/nas/status.sh"
 
 cd "$UPSTREAM_DIR"
 git reset --hard HEAD
