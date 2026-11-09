@@ -21,8 +21,14 @@ SKOPEO_PARALLEL_COPIES="${SKOPEO_PARALLEL_COPIES:-1}"
 PULL_STRATEGY="${PULL_STRATEGY:-skopeo-first}"
 REMOTE_CHECK_RETRIES="${REMOTE_CHECK_RETRIES:-3}"
 REMOTE_CHECK_DELAY_SECONDS="${REMOTE_CHECK_DELAY_SECONDS:-10}"
+REMOTE_INSPECT_TIMEOUT_SECONDS="${REMOTE_INSPECT_TIMEOUT_SECONDS:-45}"
 SKOPEO_PULL_TIMEOUT_SECONDS="${SKOPEO_PULL_TIMEOUT_SECONDS:-1500}"
 DOCKER_PULL_TIMEOUT_SECONDS="${DOCKER_PULL_TIMEOUT_SECONDS:-1200}"
+
+REGISTRY_PROXY_MODE="${REGISTRY_PROXY_MODE:-prefer}"
+REGISTRY_PROXY_URL="${REGISTRY_PROXY_URL:-http://127.0.0.1:7890}"
+REGISTRY_PROXY_PROBE_URL="${REGISTRY_PROXY_PROBE_URL:-https://ghcr.io/v2/}"
+REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS="${REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS:-8}"
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR" "$LOG_DIR" "$KVROCKS_BACKUP_ROOT"
 
@@ -89,41 +95,11 @@ ensure_skopeo() {
   fi
 
   echo "Skopeo helper image is not local; pulling it once..."
-  if docker pull "$SKOPEO_IMAGE"; then
+  if run_with_timeout "$DOCKER_PULL_TIMEOUT_SECONDS" docker pull "$SKOPEO_IMAGE"; then
     return 0
   fi
 
   echo "ERROR: could not obtain Skopeo helper image." >&2
-  return 1
-}
-
-fetch_remote_metadata() {
-  ensure_skopeo || return 1
-
-  attempt=1
-  while [ "$attempt" -le "$REMOTE_CHECK_RETRIES" ]; do
-    echo "Checking remote stable metadata (attempt $attempt/$REMOTE_CHECK_RETRIES)..."
-
-    if REMOTE_JSON="$(docker run --rm "$SKOPEO_IMAGE" inspect "docker://$IMAGE" 2>/dev/null)"; then
-      REMOTE_DIGEST="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("Digest") or "")')"
-      REMOTE_VERSION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.version") or "")')"
-      REMOTE_REVISION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.revision") or "")')"
-      REMOTE_UI="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("io.moontvplus.custom.ui.version") or "")')"
-
-      if [ -n "$REMOTE_DIGEST" ]; then
-        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
-        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
-        return 0
-      fi
-    fi
-
-    if [ "$attempt" -lt "$REMOTE_CHECK_RETRIES" ]; then
-      sleep "$REMOTE_CHECK_DELAY_SECONDS"
-    fi
-    attempt=$((attempt + 1))
-  done
-
-  echo "ERROR: remote stable metadata check failed. Production was not changed." >&2
   return 1
 }
 
@@ -156,46 +132,177 @@ run_with_timeout() {
   wait "$child"
 }
 
-pull_with_skopeo() {
+proxy_available() {
+  [ -n "$REGISTRY_PROXY_URL" ] || return 1
+
+  case "$REGISTRY_PROXY_MODE" in
+    off)
+      return 1
+      ;;
+    prefer|force)
+      ;;
+    *)
+      echo "ERROR: unsupported REGISTRY_PROXY_MODE=$REGISTRY_PROXY_MODE (use off, prefer, or force)." >&2
+      return 2
+      ;;
+  esac
+
+  curl -x "$REGISTRY_PROXY_URL"     -sS -o /dev/null     --max-time "$REGISTRY_PROXY_PROBE_TIMEOUT_SECONDS"     "$REGISTRY_PROXY_PROBE_URL" >/dev/null 2>&1
+}
+
+run_skopeo_inspect() {
+  mode="$1"
+
+  if [ "$mode" = "proxy" ]; then
+    run_with_timeout "$REMOTE_INSPECT_TIMEOUT_SECONDS"       docker run --rm         --network host         -e HTTP_PROXY="$REGISTRY_PROXY_URL"         -e HTTPS_PROXY="$REGISTRY_PROXY_URL"         -e ALL_PROXY="$REGISTRY_PROXY_URL"         -e NO_PROXY='localhost,127.0.0.1,::1'         "$SKOPEO_IMAGE"         inspect "docker://$IMAGE"
+  else
+    run_with_timeout "$REMOTE_INSPECT_TIMEOUT_SECONDS"       docker run --rm         "$SKOPEO_IMAGE"         inspect "docker://$IMAGE"
+  fi
+}
+
+inspect_remote_once() {
+  mode="$1"
+
+  if REMOTE_JSON="$(run_skopeo_inspect "$mode" 2>/dev/null)"; then
+    REMOTE_DIGEST="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("Digest") or "")')"
+    REMOTE_VERSION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.version") or "")')"
+    REMOTE_REVISION="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("org.opencontainers.image.revision") or "")')"
+    REMOTE_UI="$(printf '%s' "$REMOTE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); l=d.get("Labels") or {}; print(l.get("io.moontvplus.custom.ui.version") or "")')"
+
+    if [ -n "$REMOTE_DIGEST" ]; then
+      printf '%s\n' "$mode" > "$STATE_DIR/last-registry-transport"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+fetch_remote_metadata() {
+  ensure_skopeo || return 1
+
+  attempt=1
+  while [ "$attempt" -le "$REMOTE_CHECK_RETRIES" ]; do
+    echo "Checking remote stable metadata (attempt $attempt/$REMOTE_CHECK_RETRIES)..."
+
+    proxy_ok=0
+    if proxy_available; then
+      proxy_ok=1
+      echo "Registry proxy: available; trying proxy first."
+      if inspect_remote_once proxy; then
+        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
+        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
+        echo "Registry metadata transport: proxy"
+        return 0
+      fi
+      echo "WARNING: proxy metadata check failed." >&2
+    fi
+
+    if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+      if [ "$proxy_ok" -eq 0 ]; then
+        echo "WARNING: registry proxy is unavailable and proxy mode is force." >&2
+      fi
+    else
+      echo "Trying direct registry metadata check..."
+      if inspect_remote_once direct; then
+        printf '%s\n' "$REMOTE_DIGEST" > "$LAST_REMOTE_DIGEST"
+        date '+%Y-%m-%d %H:%M:%S %z' > "$LAST_REMOTE_CHECK"
+        echo "Registry metadata transport: direct"
+        return 0
+      fi
+    fi
+
+    if [ "$attempt" -lt "$REMOTE_CHECK_RETRIES" ]; then
+      sleep "$REMOTE_CHECK_DELAY_SECONDS"
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  echo "ERROR: remote stable metadata check failed. Production was not changed." >&2
+  return 1
+}
+
+pull_with_skopeo_mode() {
+  mode="$1"
+  helper_name="moontv-skopeo-pull-$$"
+
   echo
-  echo "===== Skopeo resilient image pull ====="
+  echo "===== Skopeo resilient image pull ($mode) ====="
   echo "Helper image    : $SKOPEO_IMAGE"
   echo "Retry times     : $SKOPEO_RETRY_TIMES"
   echo "Retry delay     : $SKOPEO_RETRY_DELAY"
   echo "Parallel copies : $SKOPEO_PARALLEL_COPIES"
   echo "Hard timeout    : ${SKOPEO_PULL_TIMEOUT_SECONDS}s"
 
-  ensure_skopeo || return 1
-
-  helper_name="moontv-skopeo-pull-$"
   cleanup_helper() {
     docker rm -f "$helper_name" >/dev/null 2>&1 || true
   }
 
   trap 'cleanup_helper; rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
-  if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"     docker run --name "$helper_name" --rm       -v /var/run/docker.sock:/var/run/docker.sock       "$SKOPEO_IMAGE"       copy       --retry-times "$SKOPEO_RETRY_TIMES"       --retry-delay "$SKOPEO_RETRY_DELAY"       --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"       "docker://$IMAGE"       "docker-daemon:$IMAGE"; then
-    cleanup_helper
-    trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
-    return 0
+  if [ "$mode" = "proxy" ]; then
+    if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"       docker run --name "$helper_name" --rm         --network host         -e HTTP_PROXY="$REGISTRY_PROXY_URL"         -e HTTPS_PROXY="$REGISTRY_PROXY_URL"         -e ALL_PROXY="$REGISTRY_PROXY_URL"         -e NO_PROXY='localhost,127.0.0.1,::1'         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
+      rc=0
+    else
+      rc=$?
+    fi
+  else
+    if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"       docker run --name "$helper_name" --rm         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
+      rc=0
+    else
+      rc=$?
+    fi
   fi
 
-  rc=$?
   cleanup_helper
   trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+
   if [ "$rc" -eq 124 ]; then
-    echo "WARNING: Skopeo pull watchdog fired after ${SKOPEO_PULL_TIMEOUT_SECONDS}s." >&2
+    echo "WARNING: Skopeo $mode pull watchdog fired after ${SKOPEO_PULL_TIMEOUT_SECONDS}s." >&2
   fi
+
+  if [ "$rc" -eq 0 ]; then
+    printf '%s\n' "skopeo-$mode" > "$STATE_DIR/last-registry-transport"
+  fi
+
   return "$rc"
+}
+
+pull_with_skopeo() {
+  ensure_skopeo || return 1
+
+  proxy_ok=0
+  if proxy_available; then
+    proxy_ok=1
+    echo "Registry proxy is available; Skopeo will use it first."
+    if pull_with_skopeo_mode proxy; then
+      return 0
+    fi
+    echo "WARNING: proxied Skopeo pull failed." >&2
+  fi
+
+  if [ "$REGISTRY_PROXY_MODE" = "force" ]; then
+    if [ "$proxy_ok" -eq 0 ]; then
+      echo "ERROR: proxy mode is force but the registry proxy is unavailable." >&2
+    fi
+    return 1
+  fi
+
+  echo "Trying direct Skopeo pull..."
+  pull_with_skopeo_mode direct
 }
 
 pull_with_docker() {
   echo "Docker pull hard timeout: ${DOCKER_PULL_TIMEOUT_SECONDS}s"
+  echo "NOTE: Docker daemon pull is a direct fallback and does not inherit the Skopeo proxy settings."
+
   if run_with_timeout "$DOCKER_PULL_TIMEOUT_SECONDS" docker pull "$IMAGE"; then
+    printf '%s\n' "docker-direct" > "$STATE_DIR/last-registry-transport"
     return 0
+  else
+    rc=$?
   fi
 
-  rc=$?
   if [ "$rc" -eq 124 ]; then
     echo "WARNING: Docker pull watchdog fired after ${DOCKER_PULL_TIMEOUT_SECONDS}s." >&2
   fi
@@ -212,7 +319,7 @@ pull_target_image() {
         echo "Skopeo pull succeeded."
         return 0
       fi
-      echo "WARNING: Skopeo pull failed; trying normal docker pull once." >&2
+      echo "WARNING: Skopeo pull failed; trying normal Docker pull once." >&2
       pull_with_docker
       ;;
     docker-first)
@@ -221,7 +328,7 @@ pull_target_image() {
         echo "Docker pull succeeded."
         return 0
       fi
-      echo "WARNING: normal docker pull failed; switching to Skopeo." >&2
+      echo "WARNING: normal Docker pull failed; switching to Skopeo." >&2
       pull_with_skopeo
       ;;
     *)
