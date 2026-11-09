@@ -22,8 +22,10 @@ PULL_STRATEGY="${PULL_STRATEGY:-skopeo-first}"
 REMOTE_CHECK_RETRIES="${REMOTE_CHECK_RETRIES:-3}"
 REMOTE_CHECK_DELAY_SECONDS="${REMOTE_CHECK_DELAY_SECONDS:-10}"
 REMOTE_INSPECT_TIMEOUT_SECONDS="${REMOTE_INSPECT_TIMEOUT_SECONDS:-45}"
-SKOPEO_PULL_TIMEOUT_SECONDS="${SKOPEO_PULL_TIMEOUT_SECONDS:-1500}"
-DOCKER_PULL_TIMEOUT_SECONDS="${DOCKER_PULL_TIMEOUT_SECONDS:-1200}"
+SKOPEO_PULL_TIMEOUT_SECONDS="${SKOPEO_PULL_TIMEOUT_SECONDS:-1200}"
+SKOPEO_PROXY_PULL_TIMEOUT_SECONDS="${SKOPEO_PROXY_PULL_TIMEOUT_SECONDS:-$SKOPEO_PULL_TIMEOUT_SECONDS}"
+SKOPEO_DIRECT_PULL_TIMEOUT_SECONDS="${SKOPEO_DIRECT_PULL_TIMEOUT_SECONDS:-600}"
+DOCKER_PULL_TIMEOUT_SECONDS="${DOCKER_PULL_TIMEOUT_SECONDS:-600}"
 
 REGISTRY_PROXY_MODE="${REGISTRY_PROXY_MODE:-prefer}"
 REGISTRY_PROXY_URL="${REGISTRY_PROXY_URL:-http://127.0.0.1:7890}"
@@ -224,7 +226,13 @@ fetch_remote_metadata() {
 
 pull_with_skopeo_mode() {
   mode="$1"
-  helper_name="moontv-skopeo-pull-$$"
+  helper_name="moontv-skopeo-pull-$"
+
+  if [ "$mode" = "proxy" ]; then
+    pull_timeout="$SKOPEO_PROXY_PULL_TIMEOUT_SECONDS"
+  else
+    pull_timeout="$SKOPEO_DIRECT_PULL_TIMEOUT_SECONDS"
+  fi
 
   echo
   echo "===== Skopeo resilient image pull ($mode) ====="
@@ -232,7 +240,7 @@ pull_with_skopeo_mode() {
   echo "Retry times     : $SKOPEO_RETRY_TIMES"
   echo "Retry delay     : $SKOPEO_RETRY_DELAY"
   echo "Parallel copies : $SKOPEO_PARALLEL_COPIES"
-  echo "Hard timeout    : ${SKOPEO_PULL_TIMEOUT_SECONDS}s"
+  echo "Hard timeout    : ${pull_timeout}s"
 
   cleanup_helper() {
     docker rm -f "$helper_name" >/dev/null 2>&1 || true
@@ -241,13 +249,13 @@ pull_with_skopeo_mode() {
   trap 'cleanup_helper; rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
   if [ "$mode" = "proxy" ]; then
-    if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"       docker run --name "$helper_name" --rm         --network host         -e HTTP_PROXY="$REGISTRY_PROXY_URL"         -e HTTPS_PROXY="$REGISTRY_PROXY_URL"         -e ALL_PROXY="$REGISTRY_PROXY_URL"         -e NO_PROXY='localhost,127.0.0.1,::1'         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
+    if run_with_timeout "$pull_timeout"       docker run --name "$helper_name" --rm         --network host         -e HTTP_PROXY="$REGISTRY_PROXY_URL"         -e HTTPS_PROXY="$REGISTRY_PROXY_URL"         -e ALL_PROXY="$REGISTRY_PROXY_URL"         -e NO_PROXY='localhost,127.0.0.1,::1'         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
       rc=0
     else
       rc=$?
     fi
   else
-    if run_with_timeout "$SKOPEO_PULL_TIMEOUT_SECONDS"       docker run --name "$helper_name" --rm         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
+    if run_with_timeout "$pull_timeout"       docker run --name "$helper_name" --rm         -v /var/run/docker.sock:/var/run/docker.sock         "$SKOPEO_IMAGE"         copy         --retry-times "$SKOPEO_RETRY_TIMES"         --retry-delay "$SKOPEO_RETRY_DELAY"         --image-parallel-copies "$SKOPEO_PARALLEL_COPIES"         "docker://$IMAGE"         "docker-daemon:$IMAGE"; then
       rc=0
     else
       rc=$?
@@ -258,7 +266,7 @@ pull_with_skopeo_mode() {
   trap 'rm -f "$LOCK_DIR/pid" 2>/dev/null || true; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
   if [ "$rc" -eq 124 ]; then
-    echo "WARNING: Skopeo $mode pull watchdog fired after ${SKOPEO_PULL_TIMEOUT_SECONDS}s." >&2
+    echo "WARNING: Skopeo $mode pull watchdog fired after ${pull_timeout}s." >&2
   fi
 
   if [ "$rc" -eq 0 ]; then
