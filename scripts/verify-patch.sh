@@ -17,6 +17,7 @@ UPSTREAM_DIR="$(cd "$UPSTREAM_DIR" && pwd)"
 PATCH_FILE="$(cd "$(dirname "$PATCH_FILE")" && pwd)/$(basename "$PATCH_FILE")"
 AUTOMATION_ROOT="$(cd "$(dirname "$PATCH_FILE")/.." && pwd)"
 CSS_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.7.1.css"
+CSS_V19_FILE="$AUTOMATION_ROOT/custom/custom-ui-v1.9.css"
 VIDEO_SCRIPT="$AUTOMATION_ROOT/scripts/apply-videocard-customization.py"
 SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-search-customization.py"
 SIDEBAR_SCRIPT="$AUTOMATION_ROOT/scripts/apply-sidebar-customization.py"
@@ -27,9 +28,11 @@ USER_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-user-home-settings.py"
 ADULT_SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-search-isolation.py"
 SMART_VOLUME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-smart-volume.py"
 SHELL_SCRIPT="$AUTOMATION_ROOT/scripts/apply-shell-customization.py"
+HOME_POLISH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-home-polish.py"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
+[[ -f "$CSS_V19_FILE" ]] || { echo "ERROR: missing $CSS_V19_FILE" >&2; exit 2; }
 [[ -f "$VIDEO_SCRIPT" ]] || { echo "ERROR: missing $VIDEO_SCRIPT" >&2; exit 2; }
 [[ -f "$SEARCH_SCRIPT" ]] || { echo "ERROR: missing $SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SIDEBAR_SCRIPT" ]] || { echo "ERROR: missing $SIDEBAR_SCRIPT" >&2; exit 2; }
@@ -40,6 +43,7 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$ADULT_SEARCH_SCRIPT" ]] || { echo "ERROR: missing $ADULT_SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SMART_VOLUME_SCRIPT" ]] || { echo "ERROR: missing $SMART_VOLUME_SCRIPT" >&2; exit 2; }
 [[ -f "$SHELL_SCRIPT" ]] || { echo "ERROR: missing $SHELL_SCRIPT" >&2; exit 2; }
+[[ -f "$HOME_POLISH_SCRIPT" ]] || { echo "ERROR: missing $HOME_POLISH_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 echo "Checking NAS maintenance script syntax..."
@@ -81,6 +85,12 @@ if ! grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css; then
   cat "$CSS_FILE" >> src/app/globals.css
 fi
 
+echo "Appending V1.9 desktop polish stylesheet..."
+if ! grep -q 'MoonTVPlus Custom UI V1.9' src/app/globals.css; then
+  printf '\n\n' >> src/app/globals.css
+  cat "$CSS_V19_FILE" >> src/app/globals.css
+fi
+
 echo "Applying semantic VideoCard class hooks..."
 python3 "$VIDEO_SCRIPT" src/components/VideoCard.tsx
 
@@ -100,6 +110,9 @@ python3 "$COVERAGE_SCRIPT" src/lib/downstream.ts
 
 echo "Applying five-row home layout + adult aggregation hooks..."
 python3 "$ADULT_HOME_SCRIPT" src/app/page.tsx
+
+echo "Applying V1.9 homepage semantic hooks..."
+python3 "$HOME_POLISH_SCRIPT" src/app/page.tsx
 
 echo "Applying adult navigation + special-source context preservation..."
 python3 "$ADULT_NAV_SCRIPT" .
@@ -126,6 +139,7 @@ grep -q 'desktop-top-actions' src/components/PageLayout.tsx
 grep -q '<UserMenu desktopBridge />' src/components/PageLayout.tsx
 grep -q 'MoonTVPlus Custom UI V1.7 Desktop Focus' src/app/globals.css
 grep -q 'MoonTVPlus Custom UI V1.7.1 Detail Grid Hotfix' src/app/globals.css
+grep -q 'MoonTVPlus Custom UI V1.9' src/app/globals.css
 grep -q 'media-card-rating' src/components/VideoCard.tsx
 grep -q 'media-card-title' src/components/VideoCard.tsx
 grep -q 'moontv-search-input' "$SEARCH_TARGET"
@@ -135,6 +149,8 @@ grep -q 'MoonTV Custom Coverage Search' src/lib/downstream.ts
 grep -Fq 'searchPlayData.length === 0' src/lib/downstream.ts
 grep -q "case 'hotAdult':" src/app/page.tsx
 grep -q "case 'hotAnime':" src/app/page.tsx
+grep -q "home-section-adult" src/app/page.tsx
+grep -q "home-section-movie" src/app/page.tsx
 grep -q "label: '成人'" src/components/Sidebar.tsx
 grep -q "id: 'hotAdult', name: '热门成人'" src/components/UserMenu.tsx
 grep -q 'recognize explicit special-source play links' src/lib/special-source.client.ts
