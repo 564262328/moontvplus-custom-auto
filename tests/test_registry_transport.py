@@ -97,5 +97,51 @@ class RegistryPrecedence(unittest.TestCase):
                     self.assertIn("-e " + variable + "=", direct)
 
 
+    def test_force_never_uses_docker_fallback(self):
+        """Exercise real routing functions with stubbed network operations."""
+        shell_functions = "\\n".join(function(name) for name in (
+            "pull_with_skopeo", "pull_with_docker", "pull_target_image"
+        ))
+        for strategy in ("skopeo", "skopeo-first", "docker-first"):
+            for proxy_ok in (False, True):
+                with self.subTest(strategy=strategy, proxy_ok=proxy_ok):
+                    with tempfile.TemporaryDirectory() as directory:
+                        setup = f"""
+REGISTRY_PROXY_MODE=force
+PULL_STRATEGY={strategy}
+IMAGE=ghcr.io/example/test:stable
+STATE_DIR={directory}
+ensure_skopeo() {{ return 0; }}
+proxy_available() {{ return 0; }}
+pull_with_skopeo_mode() {{
+  echo "skopeo:$1" >> {directory}/calls
+  {'return 0' if proxy_ok else 'return 1'}
+}}
+run_with_timeout() {{ echo docker-invoked >> {directory}/calls; return 0; }}
+"""
+                        result = subprocess.run(
+                            ["sh", "-c", setup + shell_functions + "\\npull_target_image\\n"],
+                            capture_output=True, text=True
+                        )
+                        calls_path = pathlib.Path(directory) / "calls"
+                        calls = calls_path.read_text().splitlines() if calls_path.exists() else []
+                        self.assertEqual(calls, ["skopeo:proxy"])
+                        self.assertEqual(result.returncode == 0, proxy_ok)
+
+    def test_docker_pull_guard_rejects_force(self):
+        with tempfile.TemporaryDirectory() as directory:
+            setup = f"""
+REGISTRY_PROXY_MODE=force
+STATE_DIR={directory}
+run_with_timeout() {{ echo docker-invoked > {directory}/calls; return 0; }}
+"""
+            result = subprocess.run(
+                ["sh", "-c", setup + function("pull_with_docker") + "\\npull_with_docker\\n"],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((pathlib.Path(directory) / "calls").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
