@@ -99,7 +99,7 @@ class RegistryPrecedence(unittest.TestCase):
 
     def test_force_never_uses_docker_fallback(self):
         """Exercise real routing functions with stubbed network operations."""
-        shell_functions = "\\n".join(function(name) for name in (
+        shell_functions = "\n".join(function(name) for name in (
             "pull_with_skopeo", "pull_with_docker", "pull_target_image"
         ))
         for strategy in ("skopeo", "skopeo-first", "docker-first"):
@@ -120,7 +120,7 @@ pull_with_skopeo_mode() {{
 run_with_timeout() {{ echo docker-invoked >> {directory}/calls; return 0; }}
 """
                         result = subprocess.run(
-                            ["sh", "-c", setup + shell_functions + "\\npull_target_image\\n"],
+                            ["sh", "-c", setup + shell_functions + "\npull_target_image\n"],
                             capture_output=True, text=True
                         )
                         calls_path = pathlib.Path(directory) / "calls"
@@ -136,7 +136,7 @@ STATE_DIR={directory}
 run_with_timeout() {{ echo docker-invoked > {directory}/calls; return 0; }}
 """
             result = subprocess.run(
-                ["sh", "-c", setup + function("pull_with_docker") + "\\npull_with_docker\\n"],
+                ["sh", "-c", setup + function("pull_with_docker") + "\npull_with_docker\n"],
                 capture_output=True, text=True,
             )
             self.assertNotEqual(result.returncode, 0)
