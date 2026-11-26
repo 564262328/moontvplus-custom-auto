@@ -14,7 +14,7 @@ sidebar_text = sidebar.read_text(encoding="utf-8")
 adult_item = """      {
         icon: Star,
         label: '成人',
-        href: SPECIAL_SOURCE_PATH,
+        href: '/source-search?special=1',
       },
 """
 
@@ -34,7 +34,7 @@ if "label: '成人'" not in sidebar_text:
         )
     sidebar_text = sidebar_text.replace(variety_block, variety_block + adult_item, 1)
 
-if "label: '成人'" not in sidebar_text or "href: SPECIAL_SOURCE_PATH" not in sidebar_text:
+if "label: '成人'" not in sidebar_text or "href: '/source-search?special=1'" not in sidebar_text:
     raise SystemExit("ERROR: adult Sidebar item was not applied")
 
 sidebar.write_text(sidebar_text, encoding="utf-8")
