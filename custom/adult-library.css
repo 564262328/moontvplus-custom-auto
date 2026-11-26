@@ -1,0 +1,17 @@
+/* Adult source library: desktop-first, isolated behind /source-search?special=1. */
+.adult-library-page { max-width: 1560px; margin-inline: auto; }
+.adult-library-heading { max-width: 1152px; margin-inline: auto; }
+.adult-library-heading h1 { letter-spacing: -.025em; }
+.adult-library-filters {
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: 20px;
+  padding: clamp(16px, 2vw, 28px);
+  background: rgba(148, 163, 184, .045);
+}
+.adult-library-results h2 { letter-spacing: -.02em; }
+.adult-library-grid > div { min-width: 0; }
+.adult-library-grid img { max-width: 100%; }
+@media (max-width: 640px) {
+  .adult-library-filters { border-radius: 14px; padding: 14px; }
+  .adult-library-grid { row-gap: 24px; }
+}
