@@ -28,6 +28,7 @@ ADULT_NAV_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-navigation.py"
 USER_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-user-home-settings.py"
 ADULT_SEARCH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-search-isolation.py"
 SMART_VOLUME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-smart-volume.py"
+ADMIN_SCRIPT="$AUTOMATION_ROOT/scripts/apply-admin-customization.py"
 SHELL_SCRIPT="$AUTOMATION_ROOT/scripts/apply-shell-customization.py"
 HOME_POLISH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-home-polish.py"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
@@ -44,6 +45,7 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$USER_HOME_SCRIPT" ]] || { echo "ERROR: missing $USER_HOME_SCRIPT" >&2; exit 2; }
 [[ -f "$ADULT_SEARCH_SCRIPT" ]] || { echo "ERROR: missing $ADULT_SEARCH_SCRIPT" >&2; exit 2; }
 [[ -f "$SMART_VOLUME_SCRIPT" ]] || { echo "ERROR: missing $SMART_VOLUME_SCRIPT" >&2; exit 2; }
+[[ -f "$ADMIN_SCRIPT" ]] || { echo "ERROR: missing $ADMIN_SCRIPT" >&2; exit 2; }
 [[ -f "$SHELL_SCRIPT" ]] || { echo "ERROR: missing $SHELL_SCRIPT" >&2; exit 2; }
 [[ -f "$HOME_POLISH_SCRIPT" ]] || { echo "ERROR: missing $HOME_POLISH_SCRIPT" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
@@ -87,6 +89,9 @@ if grep -RIl --exclude-dir=.git '^<<<<<<< ' . >/dev/null 2>&1; then
   echo "ERROR: conflict markers detected after structural patch application." >&2
   exit 21
 fi
+
+echo "Applying validated admin content CSS hook..."
+python3 "$ADMIN_SCRIPT" src/app/admin/page.tsx
 
 echo "Applying semantic shell hooks..."
 python3 "$SHELL_SCRIPT" .
@@ -152,6 +157,7 @@ git add   src/components/MobileHeader.tsx   src/components/PageLayout.tsx   src/
 test -f Dockerfile.preview
 grep -q 'mobile-header' src/components/MobileHeader.tsx
 grep -q 'mobile-logo' src/components/MobileHeader.tsx
+grep -q 'moontv-admin-tab-content' src/app/admin/page.tsx
 grep -q 'moontv-shell' src/components/PageLayout.tsx
 grep -q 'desktop-top-actions' src/components/PageLayout.tsx
 grep -q '<UserMenu desktopBridge />' src/components/PageLayout.tsx
