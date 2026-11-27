@@ -81,3 +81,84 @@
   .cinema-channel-chip { transition: none !important; }
   .cinema-channel-chip:hover, .cinema-home-content .media-card:hover { transform: none !important; }
 }
+
+/* V2.1.1: screenshot-driven layout correction.
+   Older V1.9 selectors were preserving narrow dashboard-style shelves. */
+@media (min-width: 1024px) {
+  .cinema-home-content {
+    margin-top: -32px !important;
+    padding-left: clamp(26px, 3.6vw, 78px) !important;
+    padding-right: clamp(26px, 3.6vw, 78px) !important;
+  }
+  .cinema-home-content > div {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+  }
+  .cinema-home-content .home-section {
+    width: 100%;
+    max-width: none !important;
+    margin-bottom: 24px !important;
+  }
+  .cinema-home-content .home-section:not(.continue-watching) .media-row > div {
+    min-width: clamp(162px, 12.4vw, 230px) !important;
+    width: clamp(162px, 12.4vw, 230px) !important;
+    flex: 0 0 auto;
+  }
+  .cinema-home-content .media-row {
+    gap: 16px !important;
+    padding-bottom: 20px !important;
+    scroll-snap-type: x proximity;
+  }
+  .cinema-home-content .media-row > div { scroll-snap-align: start; }
+  .cinema-home-content .media-card-title {
+    font-size: .91rem !important;
+    font-weight: 620 !important;
+  }
+  .cinema-home-content .section-heading-row {
+    margin-bottom: 15px !important;
+  }
+  .cinema-home-content .section-heading {
+    font-size: clamp(1.2rem, 1.55vw, 1.65rem) !important;
+  }
+  .cinema-hero {
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .cinema-hero .hero-banner {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .cinema-hero .hero-content {
+    align-items: flex-end !important;
+    padding: 60px clamp(40px, 5vw, 90px) 95px !important;
+  }
+  .cinema-hero .hero-content > div {
+    max-width: min(760px, 58vw) !important;
+  }
+  .cinema-hero .hero-title {
+    font-size: clamp(3rem, 4.1vw, 5.6rem) !important;
+    margin-bottom: 19px !important;
+  }
+  .cinema-hero .hero-overview {
+    max-width: 62ch !important;
+    font-size: .94rem !important;
+  }
+}
+.cinema-home-content .cinema-channel-nav {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 28px;
+}
+.cinema-channel-chip:hover,
+.cinema-channel-chip:focus-visible { border-color: rgba(35, 198, 139, .58); }
+.dark .cinema-home-content .home-section .section-heading {
+  color: #f4f7ff !important;
+}
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .cinema-home-content .home-section:not(.continue-watching) .media-row > div {
+    min-width: 168px !important;
+    width: 168px !important;
+  }
+}
