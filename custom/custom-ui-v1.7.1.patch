@@ -117,19 +117,6 @@ index 4e19d49..cdac98d 100644
            isParent
              ? 'bg-yellow-100/50 dark:bg-yellow-900/30 hover:bg-yellow-100/70 dark:hover:bg-yellow-900/40'
              : 'bg-gray-50/70 dark:bg-gray-800/60 hover:bg-gray-100/80 dark:hover:bg-gray-700/60'
-@@ -514,7 +515,11 @@ const CollapsibleTab = ({
-       </button>
- 
-       {isExpanded && (
--        <div className={isParent ? 'px-0.5 md:px-6 py-4' : 'px-6 py-4'}>
-+        <div
-+          className={`moontv-admin-tab-content ${
-+            isParent ? 'px-0.5 md:px-6 py-4' : 'px-6 py-4'
-+          }`}
-+        >
-           {children}
-         </div>
-       )}
 @@ -18532,10 +18537,10 @@ function AdminPageClient() {
  
    return (

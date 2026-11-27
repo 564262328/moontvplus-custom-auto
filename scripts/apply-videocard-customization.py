@@ -7,8 +7,8 @@ text = path.read_text(encoding="utf-8")
 
 replacements = [
     (
-        "className={`group relative w-full rounded-lg bg-transparent transition-all duration-300 ease-in-out hover:scale-[1.05] hover:z-[500] ${",
-        "className={`media-card group relative w-full rounded-lg bg-transparent transition-all duration-300 ease-in-out hover:scale-[1.05] hover:z-[500] ${",
+        "className={`group relative w-full rounded-lg bg-transparent transition-all duration-300 ease-in-out ${",
+        "className={`media-card group relative w-full rounded-lg bg-transparent transition-all duration-300 ease-in-out ${",
         "media-card",
     ),
     (
