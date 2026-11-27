@@ -66,7 +66,7 @@ pull_preview() {
   fi
 
   echo "Direct download failed; trying known local proxy 127.0.0.1:7890..."
-  if ! curl -fsS --max-time 4 -o /dev/null http://127.0.0.1:7890/; then
+  if ! curl -sS --max-time 4 -o /dev/null http://127.0.0.1:7890/; then
     echo "WARNING: proxy not reachable; no production change." >&2
     return 1
   fi
