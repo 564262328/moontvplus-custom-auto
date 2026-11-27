@@ -1,0 +1,164 @@
+/* MoonTVPlus Cinematic Home V2.1: desktop-first / existing data & controls. */
+@media (min-width: 768px) {
+  .cinema-hero {
+    position: relative;
+    margin: 0 auto 0 !important;
+    overflow: hidden;
+    isolation: isolate;
+    background: #080d19;
+  }
+  .cinema-hero > div {
+    height: clamp(480px, 55vw, 690px) !important;
+  }
+  .cinema-hero > div > div:first-child::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(0deg, #080e20 0%, transparent 34%),
+      linear-gradient(90deg, rgba(4,9,22,.7) 0%, transparent 73%);
+  }
+  .cinema-hero h2 {
+    max-width: 820px;
+    font-size: clamp(2.2rem, 4.4vw, 4.75rem) !important;
+    line-height: 1.08;
+    font-weight: 750;
+    letter-spacing: -.04em;
+    text-wrap: balance;
+  }
+  .cinema-hero > div > div:nth-child(2) {
+    padding: 60px clamp(32px, 6vw, 100px) 125px !important;
+  }
+  .cinema-hero p { max-width: 650px; line-height: 1.7; }
+  .cinema-hero button[class*="pointer-events-auto"] {
+    background: #23c68b !important;
+    color: #04160f !important;
+    border-radius: 999px !important;
+    padding: 12px 25px !important;
+    box-shadow: 0 14px 38px rgba(0,0,0,.25);
+  }
+  .cinema-hero button[class*="pointer-events-auto"] svg { color: #04160f; fill: #04160f; }
+  .cinema-home-content {
+    position: relative;
+    z-index: 2;
+    margin-top: -54px;
+    padding-inline: clamp(24px, 4.2vw, 90px) !important;
+    background: linear-gradient(180deg, transparent, rgba(8,14,32,.02) 95px);
+  }
+}
+.cinema-home-content > div { max-width: 1640px !important; margin-inline: auto; }
+.cinema-channel-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; margin: 10px 0 35px; }
+.cinema-channel-label { font-size: .8rem; font-weight: 700; letter-spacing: .1em; color: #94a3b8; }
+.cinema-channel-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.cinema-channel-chip {
+  padding: 9px 18px; border-radius: 999px;
+  background: rgba(127,141,163,.10); border: 1px solid rgba(127,141,163,.14);
+  font-size: .88rem; font-weight: 600; color: inherit;
+  transition: background .18s, border-color .18s, transform .18s;
+}
+.cinema-channel-chip:first-child { background: rgba(28,197,134,.15); color: #16a879; border-color: rgba(28,197,134,.26); }
+.cinema-channel-chip:hover { background: rgba(28,197,134,.16); transform: translateY(-1px); }
+.cinema-channel-chip:focus-visible { outline: 2px solid #23c68b; outline-offset: 3px; }
+.dark .cinema-channel-chip:first-child { color: #4de2aa; }
+.dark .cinema-home-content { color: #e8edf8; }
+.dark .cinema-home-content .home-section { margin-bottom: 44px; }
+.cinema-home-content .home-section .section-heading { font-size: clamp(1.15rem, 1.7vw, 1.5rem) !important; font-weight: 720; letter-spacing: -.018em; }
+.cinema-home-content .home-section .section-heading::before { background: #2acb93 !important; }
+.cinema-home-content .media-card { border-radius: 12px; }
+.cinema-home-content .media-card-image-shell { border-radius: 12px; }
+.cinema-home-content .media-card:hover { transform: translateY(-4px) !important; }
+.cinema-home-content .section-more { font-size: .84rem; opacity: .8; }
+@media (max-width: 767px) {
+  .cinema-hero { overflow: hidden; border-radius: 0; }
+  .cinema-hero > div { min-height: 250px; }
+  .cinema-home-content { padding-inline: 12px !important; }
+  .cinema-channel-nav { margin: 12px 0 24px; gap: 8px; }
+  .cinema-channel-label { width: 100%; font-size: .72rem; }
+  .cinema-channel-links { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 5px; }
+  .cinema-channel-chip { white-space: nowrap; padding: 8px 12px; font-size: .78rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cinema-channel-chip { transition: none !important; }
+  .cinema-channel-chip:hover, .cinema-home-content .media-card:hover { transform: none !important; }
+}
+
+/* V2.1.1: screenshot-driven layout correction.
+   Older V1.9 selectors were preserving narrow dashboard-style shelves. */
+@media (min-width: 1024px) {
+  .cinema-home-content {
+    margin-top: -32px !important;
+    padding-left: clamp(26px, 3.6vw, 78px) !important;
+    padding-right: clamp(26px, 3.6vw, 78px) !important;
+  }
+  .cinema-home-content > div {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+  }
+  .cinema-home-content .home-section {
+    width: 100%;
+    max-width: none !important;
+    margin-bottom: 24px !important;
+  }
+  .cinema-home-content .home-section:not(.continue-watching) .media-row > div {
+    min-width: clamp(162px, 12.4vw, 230px) !important;
+    width: clamp(162px, 12.4vw, 230px) !important;
+    flex: 0 0 auto;
+  }
+  .cinema-home-content .media-row {
+    gap: 16px !important;
+    padding-bottom: 20px !important;
+    scroll-snap-type: x proximity;
+  }
+  .cinema-home-content .media-row > div { scroll-snap-align: start; }
+  .cinema-home-content .media-card-title {
+    font-size: .91rem !important;
+    font-weight: 620 !important;
+  }
+  .cinema-home-content .section-heading-row {
+    margin-bottom: 15px !important;
+  }
+  .cinema-home-content .section-heading {
+    font-size: clamp(1.2rem, 1.55vw, 1.65rem) !important;
+  }
+  .cinema-hero {
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .cinema-hero .hero-banner {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .cinema-hero .hero-content {
+    align-items: flex-end !important;
+    padding: 60px clamp(40px, 5vw, 90px) 95px !important;
+  }
+  .cinema-hero .hero-content > div {
+    max-width: min(760px, 58vw) !important;
+  }
+  .cinema-hero .hero-title {
+    font-size: clamp(3rem, 4.1vw, 5.6rem) !important;
+    margin-bottom: 19px !important;
+  }
+  .cinema-hero .hero-overview {
+    max-width: 62ch !important;
+    font-size: .94rem !important;
+  }
+}
+.cinema-home-content .cinema-channel-nav {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 28px;
+}
+.cinema-channel-chip:hover,
+.cinema-channel-chip:focus-visible { border-color: rgba(35, 198, 139, .58); }
+.dark .cinema-home-content .home-section .section-heading {
+  color: #f4f7ff !important;
+}
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .cinema-home-content .home-section:not(.continue-watching) .media-row > div {
+    min-width: 168px !important;
+    width: 168px !important;
+  }
+}

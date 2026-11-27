@@ -31,6 +31,8 @@ SMART_VOLUME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-smart-volume.py"
 ADMIN_SCRIPT="$AUTOMATION_ROOT/scripts/apply-admin-customization.py"
 SHELL_SCRIPT="$AUTOMATION_ROOT/scripts/apply-shell-customization.py"
 HOME_POLISH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-home-polish.py"
+CINEMA_HOME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-cinematic-home.py"
+CINEMA_HOME_CSS="$AUTOMATION_ROOT/custom/cinematic-home-v2.1.css"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
@@ -48,6 +50,8 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$ADMIN_SCRIPT" ]] || { echo "ERROR: missing $ADMIN_SCRIPT" >&2; exit 2; }
 [[ -f "$SHELL_SCRIPT" ]] || { echo "ERROR: missing $SHELL_SCRIPT" >&2; exit 2; }
 [[ -f "$HOME_POLISH_SCRIPT" ]] || { echo "ERROR: missing $HOME_POLISH_SCRIPT" >&2; exit 2; }
+[[ -f "$CINEMA_HOME_SCRIPT" ]] || { echo "ERROR: missing $CINEMA_HOME_SCRIPT" >&2; exit 2; }
+[[ -f "$CINEMA_HOME_CSS" ]] || { echo "ERROR: missing $CINEMA_HOME_CSS" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 echo "Checking NAS maintenance and updater script syntax..."
@@ -137,6 +141,13 @@ python3 "$ADULT_HOME_SCRIPT" src/app/page.tsx
 echo "Applying V1.9 homepage semantic hooks..."
 python3 "$HOME_POLISH_SCRIPT" src/app/page.tsx
 
+echo "Applying V2.1 cinematic desktop homepage..."
+python3 "$CINEMA_HOME_SCRIPT" src/app/page.tsx
+if ! grep -q "MoonTVPlus Cinematic Home V2.1" src/app/globals.css; then
+  printf '\n\n' >> src/app/globals.css
+  cat "$CINEMA_HOME_CSS" >> src/app/globals.css
+fi
+
 echo "Applying adult navigation + special-source context preservation..."
 python3 "$ADULT_NAV_SCRIPT" .
 
@@ -168,6 +179,9 @@ grep -q 'MoonTVPlus Custom UI V1.9.1' src/app/globals.css
 grep -q 'media-card-rating' src/components/VideoCard.tsx
 grep -q 'media-card-title' src/components/VideoCard.tsx
 grep -q 'moontv-search-input' "$SEARCH_TARGET"
+grep -q 'cinema-channel-nav' src/app/page.tsx
+grep -q 'cinema-home-content' src/app/page.tsx
+grep -q 'MoonTVPlus Cinematic Home V2.1' src/app/globals.css
 grep -q 'pro-sidebar-personal' src/components/Sidebar.tsx
 grep -q 'pro-sidebar-offset' src/components/Sidebar.tsx
 grep -q 'MoonTV Custom Coverage Search' src/lib/downstream.ts
