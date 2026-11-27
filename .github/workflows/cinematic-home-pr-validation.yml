@@ -1,0 +1,53 @@
+name: Validate cinematic homepage V2.1 (PR)
+
+on:
+  pull_request:
+    paths:
+      - 'custom/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/cinematic-home-pr-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - name: Checkout customization
+        uses: actions/checkout@v4
+        with:
+          path: automation
+      - name: Checkout MoonTVPlus upstream
+        uses: actions/checkout@v4
+        with:
+          repository: mtvpls/MoonTVPlus
+          ref: main
+          fetch-depth: 0
+          path: upstream
+      - name: Test V2.1 semantic adapter
+        run: python3 -m unittest discover -s automation/tests -p 'test_cinematic_home.py' -v
+      - name: Apply all existing customizations and V2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash automation/scripts/verify-patch.sh upstream automation/custom/custom-ui-v1.7.1.patch
+          git -C upstream diff --cached --check
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build V2.1 preview image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: ./upstream
+          file: ./upstream/Dockerfile.preview
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: moontvplus-cinematic:v2.1-pr
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify preview container
+        run: bash automation/scripts/smoke-test.sh moontvplus-cinematic:v2.1-pr
