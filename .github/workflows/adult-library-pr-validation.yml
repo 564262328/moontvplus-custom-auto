@@ -1,0 +1,41 @@
+name: Validate adult library UI (PR)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/apply-adult-navigation.py'
+      - 'scripts/apply-adult-library-ui.py'
+      - 'custom/adult-library.css'
+      - 'tests/test_adult_library_ui.py'
+      - '.github/workflows/adult-library-pr-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-ui-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: automation
+      - uses: actions/checkout@v4
+        with:
+          repository: mtvpls/MoonTVPlus
+          ref: a72637296b7f8469eab9818cf3c30327dc75f38d
+          path: upstream
+      - name: Test UI adapter
+        run: python3 -m unittest discover -s automation/tests -p 'test_adult_library_ui.py' -v
+      - name: Apply isolated adult UI hooks to real upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 automation/scripts/apply-adult-navigation.py upstream
+          python3 automation/scripts/apply-adult-library-ui.py upstream/src/app/source-search/page.tsx
+          python3 automation/scripts/apply-adult-library-ui.py upstream/src/app/source-search/page.tsx
+          grep -Fq "href: '/source-search?special=1'" upstream/src/components/Sidebar.tsx
+          grep -Fq "isSpecialVersion ? '成人片库'" upstream/src/app/source-search/page.tsx
+          grep -Fq 'adult-library-grid' upstream/src/app/source-search/page.tsx
+          git -C upstream diff --check

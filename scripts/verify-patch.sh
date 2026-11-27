@@ -31,6 +31,8 @@ SMART_VOLUME_SCRIPT="$AUTOMATION_ROOT/scripts/apply-smart-volume.py"
 ADMIN_SCRIPT="$AUTOMATION_ROOT/scripts/apply-admin-customization.py"
 SHELL_SCRIPT="$AUTOMATION_ROOT/scripts/apply-shell-customization.py"
 HOME_POLISH_SCRIPT="$AUTOMATION_ROOT/scripts/apply-home-polish.py"
+ADULT_LIBRARY_SCRIPT="$AUTOMATION_ROOT/scripts/apply-adult-library-ui.py"
+ADULT_LIBRARY_CSS="$AUTOMATION_ROOT/custom/adult-library.css"
 OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 
 [[ -f "$CSS_FILE" ]] || { echo "ERROR: missing $CSS_FILE" >&2; exit 2; }
@@ -48,6 +50,8 @@ OVERLAY_DIR="$AUTOMATION_ROOT/custom/overlays"
 [[ -f "$ADMIN_SCRIPT" ]] || { echo "ERROR: missing $ADMIN_SCRIPT" >&2; exit 2; }
 [[ -f "$SHELL_SCRIPT" ]] || { echo "ERROR: missing $SHELL_SCRIPT" >&2; exit 2; }
 [[ -f "$HOME_POLISH_SCRIPT" ]] || { echo "ERROR: missing $HOME_POLISH_SCRIPT" >&2; exit 2; }
+[[ -f "$ADULT_LIBRARY_SCRIPT" ]] || { echo "ERROR: missing $ADULT_LIBRARY_SCRIPT" >&2; exit 2; }
+[[ -f "$ADULT_LIBRARY_CSS" ]] || { echo "ERROR: missing $ADULT_LIBRARY_CSS" >&2; exit 2; }
 [[ -d "$OVERLAY_DIR" ]] || { echo "ERROR: missing $OVERLAY_DIR" >&2; exit 2; }
 
 echo "Checking NAS maintenance and updater script syntax..."
@@ -149,10 +153,18 @@ python3 "$ADULT_SEARCH_SCRIPT" .
 echo "Applying smart volume normalization..."
 python3 "$SMART_VOLUME_SCRIPT" .
 
+echo "Applying isolated adult source-library layout..."
+python3 "$ADULT_LIBRARY_SCRIPT" src/app/source-search/page.tsx
+
+if ! grep -q "Adult source library: desktop-first" src/app/globals.css; then
+  printf '\n\n' >> src/app/globals.css
+  cat "$ADULT_LIBRARY_CSS" >> src/app/globals.css
+fi
+
 echo "Applying custom overlay files..."
 cp -a "$OVERLAY_DIR/." .
 
-git add   src/components/MobileHeader.tsx   src/components/PageLayout.tsx   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/app/play/page.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts   src/app/api/search/route.ts   src/app/api/search/ws/route.ts
+git add   src/app/source-search/page.tsx   src/components/MobileHeader.tsx   src/components/PageLayout.tsx   src/app/globals.css   src/components/VideoCard.tsx   "$SEARCH_TARGET"   src/components/Sidebar.tsx   src/components/UserMenu.tsx   src/app/play/page.tsx   src/lib/downstream.ts   src/lib/special-source.client.ts   src/app/page.tsx   src/app/under/page.tsx   src/app/api/adult/home/route.ts   src/app/api/search/route.ts   src/app/api/search/ws/route.ts
 
 test -f Dockerfile.preview
 grep -q 'mobile-header' src/components/MobileHeader.tsx
@@ -168,6 +180,9 @@ grep -q 'MoonTVPlus Custom UI V1.9.1' src/app/globals.css
 grep -q 'media-card-rating' src/components/VideoCard.tsx
 grep -q 'media-card-title' src/components/VideoCard.tsx
 grep -q 'moontv-search-input' "$SEARCH_TARGET"
+grep -q 'adult-library-grid' src/app/source-search/page.tsx
+grep -q 'Adult source library: desktop-first' src/app/globals.css
+grep -Fq "href: '/source-search?special=1'" src/components/Sidebar.tsx
 grep -q 'pro-sidebar-personal' src/components/Sidebar.tsx
 grep -q 'pro-sidebar-offset' src/components/Sidebar.tsx
 grep -q 'MoonTV Custom Coverage Search' src/lib/downstream.ts
