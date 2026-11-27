@@ -26,25 +26,84 @@ if docker inspect "$NAME" >/dev/null 2>&1; then
   echo "ERROR: $NAME already exists. Leaving it unchanged." >&2
   exit 4
 fi
+# An interrupted first pull may leave an empty preview directory.
+# Reuse ONLY a complete, private preview config; never reset passwords or data.
 if [ -e "$ROOT/preview.env" ] || [ -e "$ROOT/data" ]; then
-  echo "ERROR: existing preview state found at $ROOT; refusing to overwrite." >&2
-  exit 5
+  if [ ! -f "$ROOT/preview.env" ] || [ ! -d "$ROOT/data" ]; then
+    echo "ERROR: incomplete preview state in $ROOT; leaving it untouched." >&2
+    exit 5
+  fi
+  if ! grep -qx 'USERNAME=preview' "$ROOT/preview.env" ||
+     ! grep -qx 'NEXT_PUBLIC_STORAGE_TYPE=d1' "$ROOT/preview.env" ||
+     ! grep -qx 'SQLITE_DB_PATH=/app/.data/moontv-v21.db' "$ROOT/preview.env"; then
+    echo "ERROR: unexpected existing preview config, refusing to reuse." >&2
+    exit 5
+  fi
+  echo "Reusing isolated preview config from interrupted attempt."
 fi
 
-mkdir -p "$ROOT/data"
-PASS="$(openssl rand -hex 20)"
-cat > "$ROOT/preview.env" <<EOF
+# Favor the same resilient Skopeo method already used by the NAS updater.
+# Never call the production updater: it operates on stable and moontv-core.
+pull_preview() {
+  SKOPEO_IMAGE=quay.io/skopeo/stable:latest
+  if ! docker image inspect "$SKOPEO_IMAGE" >/dev/null 2>&1; then
+    echo "Fetching Skopeo helper..."
+    docker pull "$SKOPEO_IMAGE" || return 1
+  fi
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "ERROR: timeout command required to bound preview downloads." >&2
+    return 1
+  fi
+
+  echo "Trying Skopeo direct with retries, one parallel layer..."
+  if timeout 600 docker run --rm --network host \
+    -e HTTP_PROXY= -e HTTPS_PROXY= -e ALL_PROXY= \
+    -e http_proxy= -e https_proxy= -e all_proxy= \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    "$SKOPEO_IMAGE" copy --retry-times 10 --retry-delay 10s \
+      --image-parallel-copies 1 "docker://$IMAGE" "docker-daemon:$IMAGE"; then
+    return 0
+  fi
+
+  echo "Direct download failed; trying known local proxy 127.0.0.1:7890..."
+  if ! curl -fsS --max-time 4 -o /dev/null http://127.0.0.1:7890/; then
+    echo "WARNING: proxy not reachable; no production change." >&2
+    return 1
+  fi
+  timeout 1200 docker run --rm --network host \
+    -e HTTP_PROXY=http://127.0.0.1:7890 \
+    -e HTTPS_PROXY=http://127.0.0.1:7890 \
+    -e ALL_PROXY=http://127.0.0.1:7890 \
+    -e NO_PROXY=localhost,127.0.0.1,::1 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    "$SKOPEO_IMAGE" copy --retry-times 10 --retry-delay 10s \
+      --image-parallel-copies 1 "docker://$IMAGE" "docker-daemon:$IMAGE"
+}
+
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "Downloading isolated V2.1 preview image (production unchanged)..."
+  if ! pull_preview; then
+    echo "ERROR: preview image download failed; no production change." >&2
+    exit 6
+  fi
+fi
+docker image inspect "$IMAGE" >/dev/null 2>&1 || {
+  echo "ERROR: preview image unavailable after pull." >&2
+  exit 6
+}
+
+# Only create credentials after a successful image import.
+if [ ! -e "$ROOT/preview.env" ]; then
+  mkdir -p "$ROOT/data"
+  PASS="$(openssl rand -hex 20)"
+  cat > "$ROOT/preview.env" <<EOF
 USERNAME=preview
 PASSWORD=$PASS
 NEXT_PUBLIC_STORAGE_TYPE=d1
 SQLITE_DB_PATH=/app/.data/moontv-v21.db
 DOCKER_ENV=true
 EOF
-chmod 600 "$ROOT/preview.env"
-echo "Pulling isolated V2.1 image (production unchanged)..."
-if ! docker pull "$IMAGE"; then
-  echo "ERROR: preview image pull failed; no production change." >&2
-  exit 6
+  chmod 600 "$ROOT/preview.env"
 fi
 
 if ! docker run -d \
