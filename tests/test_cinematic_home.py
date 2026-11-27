@@ -22,6 +22,13 @@ class CinematicHomeTest(unittest.TestCase):
         self.assertNotIn('/under', result)
         self.assertEqual(result, module.apply(result))
 
+    def test_desktop_shelves_break_out_of_old_fixed_width(self):
+        css = (SCRIPT.parents[1] / 'custom' / 'cinematic-home-v2.1.css').read_text(encoding='utf-8')
+        self.assertIn('.cinema-home-content .home-section:not(.continue-watching) .media-row > div', css)
+        self.assertIn('max-width: none !important', css)
+        self.assertIn('.cinema-hero .hero-content', css)
+        self.assertIn('@media (max-width: 767px)', css)
+
     def test_unknown_structure_fails_closed(self):
         with self.assertRaises(ValueError):
             module.apply('arbitrary upstream markup')
